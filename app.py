@@ -36,6 +36,25 @@ from retrieval.sparse import sparse_search
 
 st.set_page_config(page_title="AdaptiveRAG — Underhood", page_icon="🔬", layout="wide")
 
+# ── LLM backend check — shown before anything else ──────────────────
+if not os.environ.get("GROQ_API_KEY"):
+    # Running without Groq — check if Ollama is reachable locally
+    try:
+        import requests as _req
+        _req.get("http://localhost:11434/api/tags", timeout=2).raise_for_status()
+        _ollama_ok = True
+    except Exception:
+        _ollama_ok = False
+    if not _ollama_ok:
+        st.error(
+            "**No LLM backend found.**\n\n"
+            "- **Running on Hugging Face?** Add your `GROQ_API_KEY` secret in "
+            "Space Settings → Variables and secrets. Get a free key at "
+            "[console.groq.com](https://console.groq.com).\n"
+            "- **Running locally?** Start Ollama: `ollama serve`"
+        )
+        st.stop()
+
 # ───────────────────────────── styling ──────────────────────────────
 st.markdown(
     """

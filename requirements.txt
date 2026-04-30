@@ -1,9 +1,12 @@
-chromadb==0.5.23
+# Core ML — torch pulled as a dep of sentence-transformers (HF uses cached wheel)
 sentence-transformers==3.3.1
+chromadb==0.5.23
 rank-bm25==0.2.2
 pymupdf==1.25.1
+
+# App
+streamlit==1.41.1
 requests==2.32.3
 numpy==1.26.4
-streamlit==1.41.1
 tqdm==4.67.1
 pillow==11.0.0
