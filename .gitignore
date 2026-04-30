@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+
+# macOS
+.DS_Store
+
+# Papers — excluded (public ArXiv PDFs; re-download with download_papers.sh)
+papers/
+
+# Streamlit
+.streamlit/secrets.toml

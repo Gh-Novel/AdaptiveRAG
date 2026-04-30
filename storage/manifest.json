@@ -1,0 +1,19 @@
+{
+  "n_chunks": 1934,
+  "chunks_per_doc": {
+    "01_attention_is_all_you_need": 34,
+    "02_bert": 60,
+    "03_gpt3": 237,
+    "04_ddpm": 48,
+    "05_ddim": 45,
+    "06_rag_original": 59,
+    "07_rag_survey": 95,
+    "08_self_rag": 88,
+    "09_hyde": 35,
+    "10_vit": 61,
+    "11_clip": 217,
+    "12_react": 95,
+    "13_chain_of_thought": 135,
+    "14_llm_survey": 725
+  }
+}
