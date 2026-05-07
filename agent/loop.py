@@ -2,8 +2,8 @@
 
 Pipeline:
   1. Self-RAG router: RETRIEVE / ANSWER_DIRECTLY / CLARIFY
-  2. (RETRIEVE branch) plan -> tools -> answer -> self-critique
-  3. If confidence < threshold and budget left: refine and retry
+  2. (RETRIEVE branch) plan -> tools -> answer -> self-critique -> refine
+  3. Self-Healing layer: hallucination check, chunk expansion, gap detection
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from agent.critic import critique, refine_query
 from agent.planner import plan
 from agent.router import route
 from agent.tools import ToolResult, vector_search
-from llm.ollama_client import OllamaClient
+from llm.client_factory import get_llm
 from retrieval.dense import Hit
 
 
@@ -33,6 +33,8 @@ class AgentResult:
     trace: list[TraceStep]
     iterations: int
     route: str
+    healing_trace: list[dict] = field(default_factory=list)
+    health_score: float = 100.0
 
 
 ANSWER_SYSTEM = (
@@ -88,8 +90,12 @@ def _dedupe_hits(hits: list[Hit], limit: int) -> list[Hit]:
     return out
 
 
-def run_agent(query: str, llm: OllamaClient | None = None) -> AgentResult:
-    llm = llm or OllamaClient()
+def run_agent(
+    query: str,
+    llm=None,
+    enable_healing: bool = True,
+) -> AgentResult:
+    llm = llm or get_llm()
     trace: list[TraceStep] = []
 
     # 1. Router
@@ -103,12 +109,8 @@ def run_agent(query: str, llm: OllamaClient | None = None) -> AgentResult:
             temperature=0.2,
         )
         return AgentResult(
-            answer=ans,
-            citations=[],
-            confidence=1.0,
-            trace=trace,
-            iterations=0,
-            route="ANSWER_DIRECTLY",
+            answer=ans, citations=[], confidence=1.0,
+            trace=trace, iterations=0, route="ANSWER_DIRECTLY",
         )
 
     if decision["action"] == "CLARIFY":
@@ -122,18 +124,18 @@ def run_agent(query: str, llm: OllamaClient | None = None) -> AgentResult:
             temperature=0.2,
         )
         return AgentResult(
-            answer=ans,
-            citations=[],
-            confidence=0.0,
-            trace=trace,
-            iterations=0,
-            route="CLARIFY",
+            answer=ans, citations=[], confidence=0.0,
+            trace=trace, iterations=0, route="CLARIFY",
         )
 
     # 2. RETRIEVE branch — agentic loop
     current_query = query
     last_critique: dict[str, Any] = {}
     accumulated: list[Hit] = []
+    answer = ""
+    citations: list[dict] = []
+    unique_hits: list[Hit] = []
+    final_iteration = 0
 
     for iteration in range(AGENT_CONFIG["max_iterations"]):
         prior_summary = ""
@@ -154,9 +156,7 @@ def run_agent(query: str, llm: OllamaClient | None = None) -> AgentResult:
                         "tool": "vector_search",
                         "query": step["query"],
                         "n_hits": len(tool_res.hits),
-                        "top_titles": [
-                            h.metadata.get("title") for h in tool_res.hits[:3]
-                        ],
+                        "top_titles": [h.metadata.get("title") for h in tool_res.hits[:3]],
                     },
                 )
             )
@@ -173,26 +173,47 @@ def run_agent(query: str, llm: OllamaClient | None = None) -> AgentResult:
 
         crit = critique(query, answer, context_block, llm=llm)
         last_critique = crit
+        final_iteration = iteration + 1
         trace.append(TraceStep("critique", {"iteration": iteration, **crit}))
 
         if crit["confidence"] >= AGENT_CONFIG["confidence_threshold"] and crit["grounded"]:
-            return AgentResult(
-                answer=answer,
-                citations=citations,
-                confidence=crit["confidence"],
-                trace=trace,
-                iterations=iteration + 1,
-                route="RETRIEVE",
-            )
+            break
 
         current_query = refine_query(query, crit.get("missing", ""), llm=llm)
         trace.append(TraceStep("refine", {"new_query": current_query}))
+
+    # 3. Self-Healing layer
+    healing_trace: list[dict] = []
+    health_score = 100.0
+    if enable_healing and unique_hits:
+        from healing.healing_loop import self_heal
+        healed = self_heal(query, answer, unique_hits, citations, llm=llm)
+        answer = healed.answer
+        citations = healed.citations
+        healing_trace = healed.healing_trace
+        health_score = healed.health_score
+        trace.append(
+            TraceStep(
+                "healing",
+                {
+                    "attempts": healed.attempts_used,
+                    "health_score": health_score,
+                    "issues_found": [
+                        a["issues"]
+                        for a in healing_trace
+                        if not a.get("healthy", False)
+                    ],
+                },
+            )
+        )
 
     return AgentResult(
         answer=answer,
         citations=citations,
         confidence=last_critique.get("confidence", 0.0),
         trace=trace,
-        iterations=AGENT_CONFIG["max_iterations"],
+        iterations=final_iteration,
         route="RETRIEVE",
+        healing_trace=healing_trace,
+        health_score=health_score,
     )

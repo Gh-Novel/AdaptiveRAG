@@ -215,7 +215,62 @@ def render_embedding_card(query: str, qv: list[float], dt: float) -> None:
 
 
 # ───────────────────────────── pipeline view ──────────────────────────────
-def visual_pipeline(query: str) -> None:
+def _render_healing_trace(healing_trace: list[dict], health_score: float) -> None:
+    """Render the healing trace panel below the answer."""
+    # Health score metric with colour
+    if health_score >= 80:
+        color, label = "#2ecc71", "Healthy"
+    elif health_score >= 60:
+        color, label = "#f39c12", "Fair"
+    else:
+        color, label = "#e74c3c", "Needs healing"
+    st.markdown(
+        f"<div style='display:flex;align-items:center;gap:1rem;margin:.5rem 0;'>"
+        f"<span style='font-size:1.1rem;font-weight:700;color:{color};'>"
+        f"⚕️ Health score: {health_score:.0f} / 100</span>"
+        f"<span class='pill' style='background:{color}22;color:{color};border:1px solid {color}44;'>"
+        f"{label}</span></div>",
+        unsafe_allow_html=True,
+    )
+    if not healing_trace:
+        st.success("✅ Answer passed all checks on first attempt — no healing needed.")
+        return
+    for attempt in healing_trace:
+        num = attempt.get("attempt", "?")
+        healthy = attempt.get("healthy", False)
+        icon = "✅" if healthy else "🔧"
+        issues = attempt.get("issues", [])
+        label_str = "Healthy" if healthy else f"Issues: {', '.join(issues)}"
+        with st.expander(f"{icon} Attempt {num} — {label_str}", expanded=not healthy):
+            if healthy:
+                st.success("All checks passed — answer accepted.")
+                continue
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Hallucination", "⚠️ yes" if "hallucination" in issues else "✅ no")
+            c2.metric("Low chunk quality", "⚠️ yes" if "low_chunk_quality" in issues else "✅ no")
+            c3.metric("Knowledge gap", "⚠️ yes" if "knowledge_gap" in issues else "✅ no")
+            for action in attempt.get("actions", []):
+                atype = action.get("type", "")
+                detail = action.get("detail", "")
+                icons = {
+                    "hallucination_fix": "🔍",
+                    "chunk_expansion": "📎",
+                    "web_search": "🌐",
+                    "query_rewrite": "✏️",
+                    "regenerate": "🔄",
+                }
+                prefix = icons.get(atype, "•")
+                st.markdown(
+                    f"<div class='chunk-card'><span class='pill pill-grey'>{atype}</span>"
+                    f"{prefix} {detail}</div>",
+                    unsafe_allow_html=True,
+                )
+                if atype == "hallucination_fix":
+                    for s in action.get("flagged_sentences", []):
+                        st.caption(f"  ↳ Flagged: \"{s[:120]}…\"")
+
+
+def visual_pipeline(query: str, enable_healing: bool = True) -> None:
     llm = _llm()
 
     # ── Step 1: embed the question ────────────────────────────────
@@ -452,6 +507,25 @@ def visual_pipeline(query: str) -> None:
 
         if crit["confidence"] >= AGENT_CONFIG["confidence_threshold"] and crit["grounded"]:
             st.success(f"✓ Confidence {crit['confidence']:.2f} ≥ threshold — answer accepted.")
+            if enable_healing:
+                phase_header(
+                    7, "Self-Healing layer",
+                    "Hallucination detection → chunk quality scoring → knowledge gap → regenerate if needed.",
+                )
+                with st.spinner("Running self-healing checks…"):
+                    from healing.healing_loop import self_heal
+                    healed = self_heal(query, answer, unique, citations, llm=llm)
+                if healed.attempts_used > 0:
+                    st.markdown("### Healed Answer")
+                    st.markdown(healed.answer)
+                    st.markdown("### Updated Citations")
+                    for c in healed.citations:
+                        st.markdown(
+                            f"**[{c['n']}]** {c['title']} — "
+                            f"pages {c.get('page_start')}–{c.get('page_end')} "
+                            f"· score `{c['score']:.3f}`"
+                        )
+                _render_healing_trace(healed.healing_trace, healed.health_score)
             return
 
         if it < AGENT_CONFIG["max_iterations"] - 1:
@@ -459,6 +533,18 @@ def visual_pipeline(query: str) -> None:
             current_query = refine_query(query, crit.get("missing", ""), llm=llm)
         else:
             st.error("Max iterations reached. Returning best-effort answer.")
+            if enable_healing:
+                phase_header(
+                    7, "Self-Healing layer",
+                    "Hallucination detection → chunk quality scoring → knowledge gap → regenerate if needed.",
+                )
+                with st.spinner("Running self-healing checks…"):
+                    from healing.healing_loop import self_heal
+                    healed = self_heal(query, answer, unique, citations, llm=llm)
+                if healed.attempts_used > 0:
+                    st.markdown("### Healed Answer")
+                    st.markdown(healed.answer)
+                _render_healing_trace(healed.healing_trace, healed.health_score)
 
 
 # ───────────────────────────── sidebar + tabs ──────────────────────────────
@@ -485,8 +571,8 @@ def _sidebar() -> None:
     st.sidebar.markdown("### Pipeline")
     st.sidebar.code(
         "question\n   ↓ embed (MiniLM)\n   ↓ Self-RAG router\n   ↓ planner → sub-queries\n"
-        "   ↓ dense ∥ sparse\n   ↓ RRF fusion\n   ↓ cross-encoder rerank\n   ↓ Qwen3-VL answer\n"
-        "   ↓ self-critique → retry?\n   → answer + citations",
+        "   ↓ dense ∥ sparse\n   ↓ RRF fusion\n   ↓ cross-encoder rerank\n   ↓ LLM answer\n"
+        "   ↓ self-critique → retry?\n   ↓ self-healing ⚕️\n   → answer + citations",
         language="text",
     )
 
@@ -513,9 +599,15 @@ def pipeline_tab() -> None:
         if cols[i % 3].button(s, key=f"vs{i}", use_container_width=True):
             st.session_state.vq = s
     q = st.text_area("Question", value=st.session_state.vq, height=80, key="vq_input")
+    enable_healing = st.toggle(
+        "⚕️ Self-Healing",
+        value=True,
+        help="After the answer is generated, run hallucination detection, chunk quality "
+             "scoring, and knowledge-gap checks — regenerating if issues are found.",
+    )
     if st.button("▶ Run pipeline", type="primary"):
         if q.strip():
-            visual_pipeline(q.strip())
+            visual_pipeline(q.strip(), enable_healing=enable_healing)
 
 
 def image_tab() -> None:
