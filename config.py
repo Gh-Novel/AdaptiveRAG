@@ -52,6 +52,7 @@ PATHS = {
     "chroma_dir": ROOT / "storage" / "chroma",
     "bm25_path": ROOT / "storage" / "bm25.pkl",
     "manifest_path": ROOT / "storage" / "manifest.json",
+    "versions_db": ROOT / "storage" / "versions.db",
 }
 
 CHROMA_COLLECTION = "adaptive_rag"

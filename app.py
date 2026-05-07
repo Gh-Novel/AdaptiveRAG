@@ -646,6 +646,210 @@ def image_tab() -> None:
         os.unlink(tmp_path)
 
 
+def kb_tab() -> None:
+    """Knowledge Base Versioning tab."""
+    st.subheader("📚 Knowledge Base Versioning")
+    st.caption(
+        "Every ingest run creates a versioned snapshot of the index (kb_v1, kb_v2 …). "
+        "Old snapshots are never deleted — rollback is a single metadata write. "
+        "You can query any version independently and replay historical answers."
+    )
+
+    # ── lazy import so the tab loads even if versioning DB is empty ──
+    try:
+        from versioning.version_router import VersionRouter
+        router = VersionRouter()
+        history = router.list_versions()
+    except Exception as exc:
+        st.error(f"Could not initialise versioning layer: {exc}")
+        return
+
+    # ── current version banner ───────────────────────────────────────
+    current = router.current_version()
+    if current is None:
+        st.warning(
+            "No versioned snapshot found. Run `python ingest.py` to create v1."
+        )
+        return
+
+    info = router.version_info(current)
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Current version", f"v{current}")
+    c2.metric("Total snapshots", len(history))
+    if info:
+        c3.metric("Docs added (latest)", info.get("docs_added", 0))
+        c4.metric("Docs changed (latest)", info.get("docs_changed", 0))
+
+    st.divider()
+
+    # ── version history table ────────────────────────────────────────
+    st.markdown("### Version history")
+    if history:
+        df = pd.DataFrame(history)
+        df["version"] = df["version"].apply(lambda v: f"v{v}")
+        df["timestamp"] = df["timestamp"].str[:19].str.replace("T", " ")
+        df = df.rename(columns={
+            "version": "Version",
+            "timestamp": "Created",
+            "batch_name": "Batch",
+            "docs_added": "Added",
+            "docs_changed": "Changed",
+            "docs_unchanged": "Unchanged",
+            "reason": "Reason",
+            "collection_name": "Collection",
+        })
+        st.dataframe(df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No versions yet.")
+
+    st.divider()
+
+    # ── rollback ─────────────────────────────────────────────────────
+    st.markdown("### Rollback")
+    st.caption(
+        "Rolling back points the 'latest' pointer at a previous snapshot. "
+        "The current snapshot is **not** deleted — you can roll forward again any time."
+    )
+    version_nums = sorted([v["version"] for v in history])
+    if len(version_nums) > 1:
+        target = st.selectbox(
+            "Roll back to",
+            options=[v for v in version_nums if v != current],
+            format_func=lambda v: f"v{v}",
+            key="kb_rollback_target",
+        )
+        if st.button("⏪ Rollback", type="secondary"):
+            try:
+                router.rollback(target)
+                st.success(f"Rolled back to v{target}. Reload the page to see updated metrics.")
+                st.rerun()
+            except Exception as exc:
+                st.error(str(exc))
+    else:
+        st.info("Need at least 2 versions to roll back.")
+
+    st.divider()
+
+    # ── per-version diff view ─────────────────────────────────────────
+    st.markdown("### What changed per version")
+    for v in history:
+        vnum = v["version"]
+        added = v.get("docs_added", 0)
+        changed = v.get("docs_changed", 0)
+        unchanged = v.get("docs_unchanged", 0)
+        ts = (v.get("timestamp") or "")[:19].replace("T", " ")
+        badge = "🟢" if vnum == current else "⚪"
+        label = f"{badge} v{vnum}  —  {ts}  ·  +{added} added, ~{changed} changed, {unchanged} unchanged"
+        with st.expander(label, expanded=(vnum == current)):
+            cols = st.columns(4)
+            cols[0].metric("Added", added)
+            cols[1].metric("Changed", changed)
+            cols[2].metric("Unchanged", unchanged)
+            cols[3].metric("Reason", v.get("reason") or "—")
+            st.caption(f"Collection: `{v.get('collection_name')}`  ·  Batch: `{v.get('batch_name')}`")
+            # list docs active at this version
+            try:
+                from versioning.document_store import DocumentStore
+                store = DocumentStore()
+                docs = store.docs_at_version(vnum)
+                if docs:
+                    st.markdown("**Documents active at this version:**")
+                    for d in sorted(docs, key=lambda x: x["doc_id"]):
+                        status_icon = "✅" if d["status"] == "active" else "🗃️"
+                        chk = (d.get("checksum") or "")[:12]
+                        st.markdown(
+                            f"{status_icon} `{d['doc_id']}` — "
+                            f"{d.get('title','?')[:60]}  "
+                            f"<span style='color:#9aa3b2;font-size:.75rem;'>"
+                            f"sha256:{chk}…</span>",
+                            unsafe_allow_html=True,
+                        )
+            except Exception:
+                pass
+
+    st.divider()
+
+    # ── cross-version query ───────────────────────────────────────────
+    st.markdown("### Query a specific version")
+    st.caption(
+        "Run the same question against different snapshots to see how the "
+        "knowledge base evolution affects retrieval."
+    )
+    qv_text = st.text_input(
+        "Question",
+        value="How does Self-RAG decide when to retrieve?",
+        key="kb_query_text",
+    )
+    col_v, col_k = st.columns([2, 1])
+    qv_version = col_v.selectbox(
+        "Version to query",
+        options=["latest"] + [f"v{v}" for v in sorted(version_nums, reverse=True)],
+        key="kb_query_version",
+    )
+    qv_k = col_k.slider("Top-K", 3, 10, 5, key="kb_query_k")
+
+    if st.button("🔍 Query version", key="kb_query_btn"):
+        version_arg: str | int = (
+            "latest"
+            if qv_version == "latest"
+            else int(qv_version.lstrip("v"))
+        )
+        if not router.collection_exists(version_arg):
+            st.error(
+                f"ChromaDB collection for {qv_version} not found. "
+                "The snapshot may exist in metadata but its collection was removed."
+            )
+        else:
+            with st.spinner(f"Querying {qv_version}…"):
+                try:
+                    hits, resolved = router.query(
+                        qv_text, version=version_arg, k=qv_k, log=True
+                    )
+                except Exception as exc:
+                    st.error(str(exc))
+                    hits, resolved = [], None
+
+            if hits:
+                st.success(f"Retrieved {len(hits)} passages from v{resolved}.")
+                for i, h in enumerate(hits, start=1):
+                    meta = h.metadata
+                    title = meta.get("title", "?")
+                    st.markdown(
+                        f"<div class='chunk-card'>"
+                        f"<div class='chunk-meta'>"
+                        f"<span class='pill pill-purple'>#{i}</span>"
+                        f"score <b>{h.score:.3f}</b> · {title} · "
+                        f"p.{meta.get('page_start')}–{meta.get('page_end')}"
+                        f"</div>{h.text[:300]}{'…' if len(h.text)>300 else ''}"
+                        f"</div>",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.warning("No hits returned.")
+
+    st.divider()
+
+    # ── query audit log ───────────────────────────────────────────────
+    st.markdown("### Query audit log")
+    st.caption("Every versioned query is recorded here for replay and debugging.")
+    log = router.get_query_log(limit=20)
+    if log:
+        df_log = pd.DataFrame(log)
+        df_log["timestamp"] = df_log["timestamp"].str[:19].str.replace("T", " ")
+        df_log["version_used"] = df_log["version_used"].apply(
+            lambda v: f"v{v}" if v is not None else "—"
+        )
+        df_log = df_log.rename(columns={
+            "timestamp": "Time",
+            "query": "Query",
+            "version_used": "Version",
+            "answer_hash": "Hash",
+        })
+        st.dataframe(df_log, use_container_width=True, hide_index=True)
+    else:
+        st.info("No queries logged yet.")
+
+
 def main() -> None:
     _sidebar()
     st.title("AdaptiveRAG 📚🔬")
@@ -654,11 +858,17 @@ def main() -> None:
         f"powered by `{LLM_CONFIG['model']}` via **{LLM_CONFIG['provider']}**. "
         "Every pipeline stage is exposed below."
     )
-    pipe, img = st.tabs(["🔬 Underhood pipeline", "🖼️ Image Q&A (multimodal)"])
+    pipe, img, kb = st.tabs([
+        "🔬 Underhood pipeline",
+        "🖼️ Image Q&A (multimodal)",
+        "📚 Knowledge Base",
+    ])
     with pipe:
         pipeline_tab()
     with img:
         image_tab()
+    with kb:
+        kb_tab()
 
 
 if __name__ == "__main__":

@@ -106,6 +106,39 @@ def index_chunks(chunks: list[Chunk], reset: bool = False) -> dict:
     return manifest
 
 
+def index_chunks_versioned(
+    chunks: list[Chunk],
+    batch_name: str = "",
+    reason: str = "ingest",
+) -> dict:
+    """Index chunks into a new versioned snapshot (kb_v{N}).
+
+    Only re-embeds documents whose file checksum has changed since the
+    last snapshot.  Unchanged document chunks are copied from the previous
+    ChromaDB collection without re-embedding.
+
+    Returns a dict with version, new, changed, unchanged counts.
+    """
+    from versioning.index_manager import RAGVersionManager
+
+    manager = RAGVersionManager()
+    chunks_by_doc: dict = {}
+    for c in chunks:
+        if c.doc_id not in chunks_by_doc:
+            chunks_by_doc[c.doc_id] = {
+                "chunks": [],
+                "source_path": c.source_path,
+                "title": c.title,
+            }
+        chunks_by_doc[c.doc_id]["chunks"].append(c)
+
+    return manager.add_documents(
+        chunks_by_doc,
+        batch_name=batch_name or f"{len(chunks_by_doc)}_docs",
+        reason=reason,
+    )
+
+
 def _group_count(items: list[str]) -> dict:
     out: dict = {}
     for x in items:
