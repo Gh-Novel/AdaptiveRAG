@@ -139,6 +139,33 @@ st.markdown(
   .health-val  { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 600; }
   .health-bar  { height: 5px; background: #21262D; border-radius: 3px; overflow: hidden; }
   .health-fill { height: 100%; border-radius: 3px; }
+
+  /* dashboard: stat strip */
+  .stat-strip { display: flex; gap: .6rem; margin: .4rem 0 1rem 0; flex-wrap: wrap; }
+  .stat-card  { flex: 1; min-width: 120px; background: #161B22; border: 1px solid #21262D;
+                border-radius: 6px; padding: .6rem .8rem; }
+  .stat-val   { font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; font-weight: 600; }
+  .stat-label { color: #8B949E; font-size: .64rem; text-transform: uppercase;
+                letter-spacing: .09em; margin-top: .15rem; }
+
+  /* dashboard: panel headers + rows */
+  .panel-h { font-family: 'JetBrains Mono', monospace; font-size: .7rem;
+             letter-spacing: .15em; color: #8B949E; border-bottom: 1px solid #21262D;
+             padding-bottom: .35rem; margin: .2rem 0 .6rem 0; }
+  .count-row { display: flex; justify-content: space-between; align-items: center;
+               background: rgba(255,255,255,.02); border: 1px solid #21262D;
+               border-radius: 5px; padding: .45rem .7rem; margin-bottom: .35rem;
+               font-size: .82rem; }
+  .count-pill { font-family: 'JetBrains Mono', monospace; font-size: .75rem;
+                color: #79B8FF; background: rgba(56,114,200,.12);
+                border: 1px solid rgba(121,184,255,.3); border-radius: 4px;
+                padding: .05rem .45rem; }
+  .src-row { display: flex; justify-content: space-between; align-items: center;
+             border: 1px solid #21262D; border-radius: 5px;
+             padding: .4rem .6rem; margin-bottom: .3rem;
+             background: rgba(255,255,255,.02); }
+  .query-bar { background: #161B22; border: 1px solid #21262D; border-radius: 6px;
+               padding: .6rem .9rem; font-size: .92rem; margin: .3rem 0 .6rem 0; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -337,285 +364,377 @@ def _render_healing_trace(healing_trace: list[dict], health_score: float) -> Non
 
 def visual_pipeline(query: str, enable_healing: bool = True) -> None:
     llm = _llm()
+    t_total = time.time()
+    data: dict = {"iterations": [], "healed": None}
 
-    # ── Step 1: embed the question ────────────────────────────────
-    phase_header(1, "Question encoding",
-                 "Convert text → 384-dim dense vector via sentence-transformers (MiniLM-L6).")
-    t0 = time.time()
-    qv = embed_query(query)
-    render_embedding_card(query, qv, time.time() - t0)
+    # ── execute the whole pipeline first, with compact live progress ──
+    with st.status("Running pipeline…", expanded=True) as status:
+        t0 = time.time()
+        qv = embed_query(query)
+        data["qv"], data["embed_s"] = qv, time.time() - t0
+        st.write(f"Encoded question · 384-dim · {data['embed_s']*1000:.0f} ms")
 
-    # ── Step 2: Self-RAG router ────────────────────────────────
-    phase_header(2, "Self-RAG router",
-                 "Decide whether to RETRIEVE, ANSWER_DIRECTLY, or CLARIFY before touching the index.")
-    t0 = time.time()
-    decision = route(query, llm=llm)
-    dt = time.time() - t0
-    pill_map = {"RETRIEVE": "pill-blue", "ANSWER_DIRECTLY": "pill-green", "CLARIFY": "pill-amber"}
+        t0 = time.time()
+        decision = route(query, llm=llm)
+        data["route"], data["route_s"] = decision, time.time() - t0
+        st.write(f"Router → {decision['action']} · {data['route_s']*1000:.0f} ms")
+
+        if decision["action"] in ("ANSWER_DIRECTLY", "CLARIFY"):
+            prompt = (query if decision["action"] == "ANSWER_DIRECTLY" else
+                      "The user asked: " + query +
+                      "\n\nIt is too ambiguous to answer well. Ask one short clarifying question.")
+            ans = llm.generate(prompt=prompt,
+                               system="You are a helpful research assistant. Be concise.",
+                               temperature=0.2)
+            data["answer_final"] = ans
+            data["total_s"] = time.time() - t_total
+            status.update(label=f"Pipeline complete · {data['total_s']:.1f}s",
+                          state="complete", expanded=False)
+            _render_simple_panel(decision, ans)
+            return
+
+        accumulated: list[Hit] = []
+        current_query = query
+        answer, citations, unique = "", [], []
+        crit: dict = {}
+        context_block = ""
+
+        for it in range(AGENT_CONFIG["max_iterations"]):
+            it_data: dict = {"n": it + 1, "query": current_query, "subqueries": []}
+            prior = ""
+            if accumulated:
+                titles = sorted({h.metadata.get("title", "?") for h in accumulated})
+                prior = "Already gathered passages from: " + ", ".join(titles)
+            t0 = time.time()
+            steps = plan(current_query, prior_summary=prior, llm=llm)
+            it_data["plan_s"] = time.time() - t0
+            st.write(f"Iteration {it+1} · planner → {len(steps)} sub-quer"
+                     f"{'y' if len(steps)==1 else 'ies'} · {it_data['plan_s']*1000:.0f} ms")
+
+            for step in steps:
+                sq: dict = {"query": step["query"], "rationale": step.get("rationale", "")}
+                t0 = time.time()
+                sq["dense"] = dense_search(step["query"])
+                sq["t_dense"] = time.time() - t0
+                t0 = time.time()
+                sq["sparse"] = sparse_search(step["query"])
+                sq["t_sparse"] = time.time() - t0
+                t0 = time.time()
+                sq["fused"] = reciprocal_rank_fusion(
+                    [sq["dense"], sq["sparse"]],
+                    top_k=max(RETRIEVAL_CONFIG["dense_k"], RETRIEVAL_CONFIG["sparse_k"]))
+                sq["t_fuse"] = time.time() - t0
+                t0 = time.time()
+                sq["reranked"] = rerank(step["query"], sq["fused"])
+                sq["t_rerank"] = time.time() - t0
+                accumulated.extend(sq["reranked"])
+                it_data["subqueries"].append(sq)
+                st.write(f"  “{step['query'][:52]}” — dense {len(sq['dense'])} · "
+                         f"sparse {len(sq['sparse'])} · rerank {len(sq['reranked'])} "
+                         f"({sq['t_rerank']:.1f}s)")
+
+            seen: set[str] = set()
+            unique = []
+            for h in accumulated:
+                if h.chunk_id in seen:
+                    continue
+                seen.add(h.chunk_id)
+                unique.append(h)
+                if len(unique) >= 8:
+                    break
+            context_lines, citations = [], []
+            for i, h in enumerate(unique, start=1):
+                meta = h.metadata
+                head = (f"[{i}] {meta.get('title','?')} "
+                        f"(p.{meta.get('page_start')}-{meta.get('page_end')})")
+                context_lines.append(f"{head}\n{h.text}")
+                citations.append({
+                    "n": i, "chunk_id": h.chunk_id,
+                    "title": meta.get("title"),
+                    "source_path": meta.get("source_path"),
+                    "page_start": meta.get("page_start"),
+                    "page_end": meta.get("page_end"),
+                    "score": float(h.score),
+                })
+            context_block = "\n\n".join(context_lines)
+
+            ANSWER_SYSTEM = (
+                "You are a careful research assistant. Use ONLY the provided passages to "
+                "answer the question. Cite sources inline using the passage number in "
+                "square brackets, e.g. [1] or [2][3] — never write the placeholder '[N]'. "
+                "If the passages are insufficient, say so explicitly."
+            )
+            ANSWER_PROMPT = (
+                f"Question: {query}\n\nPassages:\n{context_block}\n\n"
+                "Write a concise, well-grounded answer. Use inline citations like [1], [2] "
+                "that match the passage numbers above."
+            )
+            t0 = time.time()
+            answer = llm.generate(prompt=ANSWER_PROMPT, system=ANSWER_SYSTEM, temperature=0.1)
+            it_data["answer_s"] = time.time() - t0
+            st.write(f"  Answer generated · {it_data['answer_s']:.1f}s")
+
+            t0 = time.time()
+            crit = critique(query, answer, context_block, llm=llm)
+            it_data["critique"] = crit
+            it_data["critique_s"] = time.time() - t0
+            st.write(f"  Critique → confidence {crit['confidence']:.2f} · "
+                     f"grounded {'yes' if crit['grounded'] else 'no'}")
+            data["iterations"].append(it_data)
+
+            if crit["confidence"] >= AGENT_CONFIG["confidence_threshold"] and crit["grounded"]:
+                break
+            if it < AGENT_CONFIG["max_iterations"] - 1:
+                current_query = refine_query(query, crit.get("missing", ""), llm=llm)
+                st.write(f"  Below threshold — refined query: “{current_query[:60]}”")
+
+        data.update(answer=answer, citations=citations, unique=unique,
+                    critique=crit, context_block=context_block)
+        data["answer_final"] = answer
+        data["citations_final"] = citations
+
+        if enable_healing and unique:
+            st.write("Self-healing checks…")
+            from healing.healing_loop import self_heal
+            t0 = time.time()
+            healed = self_heal(query, answer, unique, citations, llm=llm)
+            data["heal_s"] = time.time() - t0
+            data["healed"] = healed
+            st.write(f"  Health {healed.health_score:.0f}/100 · "
+                     f"{healed.attempts_used} repair attempt(s) · {data['heal_s']:.1f}s")
+            if healed.attempts_used > 0:
+                data["answer_final"] = healed.answer
+                if healed.citations:
+                    data["citations_final"] = healed.citations
+
+        data["total_s"] = time.time() - t_total
+        status.update(label=f"Pipeline complete · {data['total_s']:.1f}s",
+                      state="complete", expanded=False)
+
+    _render_dashboard(query, data)
+
+
+def _render_simple_panel(decision: dict, answer: str) -> None:
+    pill_map = {"ANSWER_DIRECTLY": "pill-green", "CLARIFY": "pill-amber"}
     pill = pill_map.get(decision["action"], "pill-grey")
     st.markdown(
+        f"<div class='panel-h'>FINAL ANSWER</div>"
         f"<span class='pill {pill}'>{decision['action']}</span>"
-        f"<span style='color:#9aa3b2;'>{decision.get('reason','')}</span>"
-        f"<span style='float:right;color:#9aa3b2;font-size:.78rem;'>"
-        f"router latency: {dt*1000:.0f} ms</span>",
+        f"<span style='color:#8B949E;font-size:.82rem;'>{decision.get('reason','')}</span>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(answer)
+
+
+def _stat_card(label: str, value: str, accent: str = "#E6EDF3") -> str:
+    return (f"<div class='stat-card'><div class='stat-val' "
+            f"style='color:{accent};'>{value}</div>"
+            f"<div class='stat-label'>{label}</div></div>")
+
+
+def _render_dashboard(query: str, data: dict) -> None:
+    healed = data.get("healed")
+    crit = data.get("critique", {})
+    manifest = _load_manifest()
+
+    st.markdown(
+        f"<div class='query-bar'><span class='chip-label'>query</span> {query}</div>",
         unsafe_allow_html=True,
     )
 
-    if decision["action"] == "ANSWER_DIRECTLY":
-        st.markdown("### Direct answer (no retrieval)")
-        ans = llm.generate(prompt=query,
-                           system="You are a helpful research assistant. Be concise.",
-                           temperature=0.2)
-        st.markdown(ans)
-        return
-    if decision["action"] == "CLARIFY":
-        st.markdown("### Clarifying question")
-        ans = llm.generate(
-            prompt=("The user asked: " + query +
-                    "\n\nIt is too ambiguous to answer well. Ask one short clarifying question."),
-            system="You are a helpful research assistant.",
-            temperature=0.2,
-        )
-        st.markdown(ans)
-        return
+    # ── stat strip ────────────────────────────────────────────────
+    health = healed.health_score if healed else None
+    if health is None:
+        h_val, h_color = "off", "#8B949E"
+    elif health >= 80:
+        h_val, h_color = f"{health:.0f} healthy", "#3FB950"
+    elif health >= 60:
+        h_val, h_color = f"{health:.0f} fair", "#D29922"
+    else:
+        h_val, h_color = f"{health:.0f} degraded", "#F85149"
+    conf = crit.get("confidence", 0.0)
+    conf_color = "#3FB950" if conf >= AGENT_CONFIG["confidence_threshold"] else "#D29922"
+    st.markdown(
+        "<div class='stat-strip'>"
+        + _stat_card("chunks indexed", f"{manifest.get('n_chunks','—'):,}"
+                     if isinstance(manifest.get("n_chunks"), int) else "—")
+        + _stat_card("documents", str(len(manifest.get("chunks_per_doc", {}))))
+        + _stat_card("embedding dim", "384")
+        + _stat_card("confidence", f"{conf:.2f}", conf_color)
+        + _stat_card("total runtime", f"{data['total_s']:.1f}s")
+        + _stat_card("answer health", h_val, h_color)
+        + "</div>",
+        unsafe_allow_html=True,
+    )
 
-    # ── Iterations of plan → retrieve → answer → critique ────────
-    accumulated: list[Hit] = []
-    current_query = query
+    # ── three fixed panels ────────────────────────────────────────
+    left, center, right = st.columns([1.0, 1.85, 1.45], gap="medium")
 
-    for it in range(AGENT_CONFIG["max_iterations"]):
-        st.markdown(f"<div class='iter-rule'><span>ITERATION {it + 1}</span></div>",
+    # LEFT — retrieval explorer
+    with left:
+        st.markdown("<div class='panel-h'>RETRIEVAL EXPLORER</div>", unsafe_allow_html=True)
+        n_dense = sum(len(sq["dense"]) for it in data["iterations"] for sq in it["subqueries"])
+        n_sparse = sum(len(sq["sparse"]) for it in data["iterations"] for sq in it["subqueries"])
+        n_fused = sum(len(sq["fused"]) for it in data["iterations"] for sq in it["subqueries"])
+        n_rerank = sum(len(sq["reranked"]) for it in data["iterations"] for sq in it["subqueries"])
+        for lbl, n in (("Dense hits", n_dense), ("Sparse hits", n_sparse),
+                       ("After fusion (RRF)", n_fused), ("After rerank", n_rerank)):
+            st.markdown(
+                f"<div class='count-row'><span>{lbl}</span>"
+                f"<span class='count-pill'>{n}</span></div>",
+                unsafe_allow_html=True,
+            )
+        st.markdown("<div class='panel-h' style='margin-top:1rem;'>TOP CHUNKS</div>",
                     unsafe_allow_html=True)
-        if current_query != query:
-            st.info(f"Refined query → **{current_query}**")
-
-        # ── Step 3: plan ─────────────────────────────────────
-        phase_header(3, "Planner", "LLM decomposes the question into focused sub-queries.")
-        prior = ""
-        if accumulated:
-            titles = sorted({h.metadata.get("title", "?") for h in accumulated})
-            prior = "Already gathered passages from: " + ", ".join(titles)
-        t0 = time.time()
-        steps = plan(current_query, prior_summary=prior, llm=llm)
-        dt = time.time() - t0
-        st.caption(f"Generated {len(steps)} sub-quer{'y' if len(steps)==1 else 'ies'} in {dt*1000:.0f} ms")
-        for i, s in enumerate(steps, start=1):
+        for i, h in enumerate(data.get("unique", [])[:5], start=1):
+            meta = h.metadata
+            title = (meta.get("title") or "?").split(" (")[0]
+            fname = Path(meta.get("source_path", "?")).name
             st.markdown(
                 f"<div class='chunk-card'>"
-                f"<span class='pill pill-purple'>sub-query {i}</span>"
-                f"<b>{s['query']}</b>"
-                f"<div class='chunk-meta' style='margin-top:.3rem;'>"
-                f"rationale: {s.get('rationale','—')}</div></div>",
+                f"<div class='chunk-meta'>#{i} · score <b>{h.score:.3f}</b></div>"
+                f"<div style='font-size:.8rem;font-weight:600;'>{title[:48]}</div>"
+                f"<div class='chunk-meta' style='margin-top:.2rem;'>"
+                f"p.{meta.get('page_start')}–{meta.get('page_end')} · {fname}</div></div>",
                 unsafe_allow_html=True,
             )
 
-        # ── Step 4: retrieval per sub-query ──────────────────
-        phase_header(
-            4,
-            "Hybrid retrieval per sub-query",
-            f"Dense (Chroma cosine, k={RETRIEVAL_CONFIG['dense_k']}) ∥ "
-            f"Sparse (BM25, k={RETRIEVAL_CONFIG['sparse_k']}) → "
-            f"Reciprocal Rank Fusion → Cross-encoder rerank "
-            f"(BGE, top {RETRIEVAL_CONFIG['rerank_top_n']}).",
-        )
+    # CENTER — pipeline inspector
+    with center:
+        st.markdown("<div class='panel-h'>PIPELINE INSPECTOR</div>", unsafe_allow_html=True)
+        tab_names = ["Vector", "Router", "Planner", "Retrieval", "Rerank", "Critique"]
+        if healed is not None:
+            tab_names.append("Healing")
+        tabs = st.tabs(tab_names)
 
-        for si, step in enumerate(steps, start=1):
-            with st.expander(f"Sub-query {si}: {step['query']}", expanded=(si == 1)):
-                t0 = time.time()
-                dense_hits = dense_search(step["query"])
-                t_dense = time.time() - t0
-                t0 = time.time()
-                sparse_hits = sparse_search(step["query"])
-                t_sparse = time.time() - t0
-                t0 = time.time()
-                fused = reciprocal_rank_fusion([dense_hits, sparse_hits],
-                                               top_k=max(RETRIEVAL_CONFIG["dense_k"],
-                                                         RETRIEVAL_CONFIG["sparse_k"]))
-                t_fuse = time.time() - t0
-                t0 = time.time()
-                reranked = rerank(step["query"], fused)
-                t_rerank = time.time() - t0
+        with tabs[0]:
+            arr = np.array(data["qv"], dtype=np.float32)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Model", EMBEDDING_CONFIG["model"].split("/")[-1].replace("all-", ""))
+            c2.metric("Embed time", f"{data['embed_s']*1000:.0f} ms")
+            c3.metric("L2 norm", f"{float(np.linalg.norm(arr)):.3f}")
+            st.caption("Embedding vector — all 384 dimensions")
+            st.bar_chart(pd.DataFrame({"value": arr}), height=190, use_container_width=True)
+            preview = ", ".join(f"{x:+.3f}" for x in arr[:8]) + ", …"
+            st.markdown(f"<span class='mini-vec'>vector[0:8] = [{preview}]</span>",
+                        unsafe_allow_html=True)
 
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Dense hits", len(dense_hits), f"{t_dense*1000:.0f} ms")
-                m2.metric("Sparse hits", len(sparse_hits), f"{t_sparse*1000:.0f} ms")
-                m3.metric("After RRF", len(fused), f"{t_fuse*1000:.0f} ms")
-                m4.metric("After rerank", len(reranked), f"{t_rerank*1000:.0f} ms")
-
-                tabs = st.tabs([
-                    "Dense · vectors",
-                    "Sparse · FTS5 BM25",
-                    "RRF fusion",
-                    "Cross-encoder rerank",
-                    "Vector space",
-                ])
-                with tabs[0]:
-                    st.caption("Top-K nearest neighbors by cosine similarity.")
-                    if dense_hits:
-                        st.bar_chart(hits_to_df(dense_hits, "cosine_sim"),
-                                     x="chunk", y="cosine_sim",
-                                     height=260, use_container_width=True)
-                    render_hits(dense_hits[:5], "pill-blue", "DENSE")
-
-                with tabs[1]:
-                    st.caption("Top-K BM25 keyword matches (normalized).")
-                    if sparse_hits:
-                        st.bar_chart(hits_to_df(sparse_hits, "bm25_norm"),
-                                     x="chunk", y="bm25_norm",
-                                     height=260, use_container_width=True)
-                    render_hits(sparse_hits[:5], "pill-green", "BM25")
-
-                with tabs[2]:
-                    st.caption(
-                        "Reciprocal Rank Fusion: score(d) = Σ 1/(k + rank). "
-                        "Combines dense + sparse rankings into one merged list."
-                    )
-                    if fused:
-                        st.bar_chart(hits_to_df(fused[:12], "rrf_score"),
-                                     x="chunk", y="rrf_score",
-                                     height=280, use_container_width=True)
-                    render_hits(fused[:5], "pill-purple", "FUSED")
-
-                with tabs[3]:
-                    st.caption(
-                        "Cross-encoder scores (query, chunk) jointly — much more "
-                        "accurate than bi-encoder cosine, but slower → only run on "
-                        "the fused candidate set."
-                    )
-                    if reranked:
-                        st.bar_chart(hits_to_df(reranked, "ce_score"),
-                                     x="chunk", y="ce_score",
-                                     height=240, use_container_width=True)
-                    render_hits(reranked, "pill-amber", "RERANKED")
-
-                with tabs[4]:
-                    dense_ids = {h.chunk_id for h in dense_hits}
-                    sparse_ids = {h.chunk_id for h in sparse_hits}
-                    kept_ids = {h.chunk_id for h in reranked}
-                    vector_space_plot(qv, fused[:20], dense_ids, sparse_ids, kept_ids)
-
-                accumulated.extend(reranked)
-
-        # ── Step 5: answer ─────────────────────────────────────
-        # Dedupe + cap to 8 passages for the final prompt
-        seen: set[str] = set()
-        unique: list[Hit] = []
-        for h in accumulated:
-            if h.chunk_id in seen:
-                continue
-            seen.add(h.chunk_id)
-            unique.append(h)
-            if len(unique) >= 8:
-                break
-        context_lines, citations = [], []
-        for i, h in enumerate(unique, start=1):
-            meta = h.metadata
-            head = (f"[{i}] {meta.get('title','?')} "
-                    f"(p.{meta.get('page_start')}-{meta.get('page_end')})")
-            context_lines.append(f"{head}\n{h.text}")
-            citations.append({
-                "n": i, "chunk_id": h.chunk_id,
-                "title": meta.get("title"),
-                "source_path": meta.get("source_path"),
-                "page_start": meta.get("page_start"),
-                "page_end": meta.get("page_end"),
-                "score": float(h.score),
-            })
-        context_block = "\n\n".join(context_lines)
-
-        phase_header(5, "Context assembly + answer generation",
-                     f"Top {len(unique)} unique passages → {LLM_CONFIG['model']} via {LLM_CONFIG['provider']}.")
-        with st.expander("Context handed to the LLM", expanded=False):
-            for c in citations:
-                st.markdown(
-                    f"**[{c['n']}]** {c['title']} · pages {c['page_start']}–{c['page_end']} · "
-                    f"score `{c['score']:.3f}`"
-                )
-            st.code(context_block[:3000] + ("…" if len(context_block) > 3000 else ""),
-                    language="text")
-
-        t0 = time.time()
-        ANSWER_SYSTEM = (
-            "You are a careful research assistant. Use ONLY the provided passages to "
-            "answer the question. Cite sources inline using the passage number in "
-            "square brackets, e.g. [1] or [2][3] — never write the placeholder '[N]'. "
-            "If the passages are insufficient, say so explicitly."
-        )
-        ANSWER_PROMPT = (
-            f"Question: {query}\n\nPassages:\n{context_block}\n\n"
-            "Write a concise, well-grounded answer. Use inline citations like [1], [2] "
-            "that match the passage numbers above."
-        )
-        answer = llm.generate(prompt=ANSWER_PROMPT, system=ANSWER_SYSTEM, temperature=0.1)
-        st.caption(f"LLM generation: {time.time()-t0:.1f} s")
-        st.markdown("### Answer")
-        st.markdown(answer)
-
-        st.markdown("### Citations")
-        for c in citations:
+        with tabs[1]:
+            d = data["route"]
+            pill_map = {"RETRIEVE": "pill-blue", "ANSWER_DIRECTLY": "pill-green",
+                        "CLARIFY": "pill-amber"}
             st.markdown(
-                f"**[{c['n']}]** {c['title']} — pages {c['page_start']}–{c['page_end']} "
-                f"· score `{c['score']:.3f}` · `{Path(c['source_path']).name}`"
+                f"<span class='pill {pill_map.get(d['action'],'pill-grey')}'>{d['action']}</span>"
+                f"<span style='color:#8B949E;font-size:.84rem;'>{d.get('reason','')}</span>",
+                unsafe_allow_html=True,
+            )
+            st.caption(f"Router latency: {data['route_s']*1000:.0f} ms")
+
+        with tabs[2]:
+            for it_data in data["iterations"]:
+                if len(data["iterations"]) > 1:
+                    st.caption(f"Iteration {it_data['n']} — query: “{it_data['query'][:70]}”")
+                for i, sq in enumerate(it_data["subqueries"], start=1):
+                    st.markdown(
+                        f"<div class='chunk-card'>"
+                        f"<span class='pill pill-purple'>sub-query {i}</span>"
+                        f"<b style='font-size:.85rem;'>{sq['query']}</b>"
+                        f"<div class='chunk-meta' style='margin-top:.3rem;'>"
+                        f"{sq.get('rationale','—')}</div></div>",
+                        unsafe_allow_html=True,
+                    )
+
+        with tabs[3]:
+            all_sqs = [sq for it_data in data["iterations"] for sq in it_data["subqueries"]]
+            labels = [f"{i+1}. {sq['query'][:60]}" for i, sq in enumerate(all_sqs)]
+            sel = st.selectbox("Sub-query", labels, label_visibility="collapsed") if len(labels) > 1 else labels[0]
+            sq = all_sqs[labels.index(sel)]
+            m1, m2, m3, m4 = st.columns(4)
+            m1.metric("Dense", len(sq["dense"]), f"{sq['t_dense']*1000:.0f} ms")
+            m2.metric("Sparse", len(sq["sparse"]), f"{sq['t_sparse']*1000:.0f} ms")
+            m3.metric("RRF", len(sq["fused"]), f"{sq['t_fuse']*1000:.0f} ms")
+            m4.metric("Rerank", len(sq["reranked"]), f"{sq['t_rerank']*1000:.0f} ms")
+            if sq["fused"]:
+                st.caption("Fused candidates (RRF score)")
+                st.bar_chart(hits_to_df(sq["fused"][:12], "rrf_score"),
+                             x="chunk", y="rrf_score", height=230,
+                             use_container_width=True)
+            dense_ids = {h.chunk_id for h in sq["dense"]}
+            sparse_ids = {h.chunk_id for h in sq["sparse"]}
+            kept_ids = {h.chunk_id for h in sq["reranked"]}
+            vector_space_plot(data["qv"], sq["fused"][:20], dense_ids, sparse_ids, kept_ids)
+
+        with tabs[4]:
+            all_sqs = [sq for it_data in data["iterations"] for sq in it_data["subqueries"]]
+            best = max(all_sqs, key=lambda s: max((h.score for h in s["reranked"]), default=0))
+            st.caption(
+                "Cross-encoder scores (query, chunk) jointly — far more accurate than "
+                "bi-encoder cosine; only run on the fused candidate set."
+            )
+            if best["reranked"]:
+                st.bar_chart(hits_to_df(best["reranked"], "ce_score"),
+                             x="chunk", y="ce_score", height=210, use_container_width=True)
+            render_hits(best["reranked"][:4], "pill-amber", "RERANKED", max_chars=160)
+
+        with tabs[5]:
+            conf_c = "#3FB950" if conf >= AGENT_CONFIG["confidence_threshold"] else "#D29922"
+            st.markdown(
+                chip("grounded", crit.get("grounded", False), text_ok="yes", text_bad="no")
+                + chip("complete", crit.get("complete", False), text_ok="yes", text_bad="no", warn=True)
+                + f"<span class='chip-label'>confidence</span>"
+                f"<span class='chip' style='color:{conf_c};border-color:{conf_c}55;'>"
+                f"{conf:.2f} / {AGENT_CONFIG['confidence_threshold']:.2f}</span>",
+                unsafe_allow_html=True,
+            )
+            if crit.get("missing"):
+                st.warning(f"Missing: {crit['missing']}")
+            st.caption(f"{len(data['iterations'])} iteration(s) used "
+                       f"of {AGENT_CONFIG['max_iterations']} allowed")
+
+        if healed is not None:
+            with tabs[6]:
+                _render_healing_trace(healed.healing_trace, healed.health_score)
+
+    # RIGHT — final answer
+    with right:
+        st.markdown("<div class='panel-h'>FINAL ANSWER</div>", unsafe_allow_html=True)
+        ready_ok = crit.get("grounded", False) and conf >= AGENT_CONFIG["confidence_threshold"]
+        badge = ("<span class='chip chip-ok'><span class='dot'></span>answer ready</span>"
+                 if ready_ok else
+                 "<span class='chip chip-warn'><span class='dot'></span>best effort</span>")
+        st.markdown(badge, unsafe_allow_html=True)
+        st.markdown(data["answer_final"])
+
+        st.markdown("<div class='panel-h' style='margin-top:.9rem;'>SOURCES</div>",
+                    unsafe_allow_html=True)
+        for c in data.get("citations_final", [])[:8]:
+            sc = c.get("score", 0.0)
+            sc_color = "#3FB950" if sc >= 0.6 else ("#D29922" if sc >= 0.3 else "#8B949E")
+            st.markdown(
+                f"<div class='src-row'><span style='font-size:.8rem;'>"
+                f"<b>[{c['n']}]</b> {str(c.get('title','?'))[:52]} · "
+                f"<span style='color:#8B949E;'>p.{c.get('page_start')}–{c.get('page_end')}</span>"
+                f"</span><span class='count-pill' style='color:{sc_color};'>"
+                f"{sc:.3f}</span></div>",
+                unsafe_allow_html=True,
             )
 
-        # ── Step 6: critic ─────────────────────────────────────
-        phase_header(6, "Self-critique",
-                     "LLM scores its own answer for grounding + completeness.")
-        t0 = time.time()
-        crit = critique(query, answer, context_block, llm=llm)
-        conf_color = "#3FB950" if crit["confidence"] >= AGENT_CONFIG["confidence_threshold"] else "#D29922"
-        st.markdown(
-            chip("grounded", crit["grounded"], text_ok="yes", text_bad="no")
-            + chip("complete", crit["complete"], text_ok="yes", text_bad="no", warn=True)
-            + f"<span class='chip-label'>confidence</span>"
-            f"<span class='chip' style='color:{conf_color};border-color:{conf_color}55;'>"
-            f"{crit['confidence']:.2f} / {AGENT_CONFIG['confidence_threshold']:.2f}</span>",
-            unsafe_allow_html=True,
-        )
-        if crit.get("missing"):
-            st.warning(f"Missing: {crit['missing']}")
-        st.caption(f"Critique latency: {time.time()-t0:.1f} s")
-
-        if crit["confidence"] >= AGENT_CONFIG["confidence_threshold"] and crit["grounded"]:
-            st.success(f"Confidence {crit['confidence']:.2f} ≥ threshold — answer accepted.")
-            if enable_healing:
-                phase_header(
-                    7, "Self-Healing layer",
-                    "Hallucination detection → chunk quality scoring → knowledge gap → regenerate if needed.",
-                )
-                with st.spinner("Running self-healing checks…"):
-                    from healing.healing_loop import self_heal
-                    healed = self_heal(query, answer, unique, citations, llm=llm)
-                if healed.attempts_used > 0:
-                    st.markdown("### Healed Answer")
-                    st.markdown(healed.answer)
-                    st.markdown("### Updated Citations")
-                    for c in healed.citations:
-                        st.markdown(
-                            f"**[{c['n']}]** {c['title']} — "
-                            f"pages {c.get('page_start')}–{c.get('page_end')} "
-                            f"· score `{c['score']:.3f}`"
-                        )
-                _render_healing_trace(healed.healing_trace, healed.health_score)
-            return
-
-        if it < AGENT_CONFIG["max_iterations"] - 1:
-            st.warning("Confidence below threshold — refining query and retrying.")
-            current_query = refine_query(query, crit.get("missing", ""), llm=llm)
-        else:
-            st.error("Max iterations reached. Returning best-effort answer.")
-            if enable_healing:
-                phase_header(
-                    7, "Self-Healing layer",
-                    "Hallucination detection → chunk quality scoring → knowledge gap → regenerate if needed.",
-                )
-                with st.spinner("Running self-healing checks…"):
-                    from healing.healing_loop import self_heal
-                    healed = self_heal(query, answer, unique, citations, llm=llm)
-                if healed.attempts_used > 0:
-                    st.markdown("### Healed Answer")
-                    st.markdown(healed.answer)
-                _render_healing_trace(healed.healing_trace, healed.health_score)
+        st.markdown("<div class='panel-h' style='margin-top:.9rem;'>EVALUATION</div>",
+                    unsafe_allow_html=True)
+        e1, e2, e3 = st.columns(3)
+        e1.metric("Confidence", f"{conf:.2f}")
+        e2.metric("Grounded", "yes" if crit.get("grounded") else "no")
+        e3.metric("Complete", "yes" if crit.get("complete") else "no")
+        if healed is not None:
+            hs = healed.health_score
+            hcol = "#3FB950" if hs >= 80 else ("#D29922" if hs >= 60 else "#F85149")
+            st.markdown(
+                f"<div class='health-bar' style='margin-top:.4rem;'>"
+                f"<div class='health-fill' style='width:{hs:.0f}%;background:{hcol};'></div></div>"
+                f"<div class='chunk-meta' style='margin-top:.25rem;'>self-healing health "
+                f"{hs:.0f}/100 · {healed.attempts_used} repair attempt(s)</div>",
+                unsafe_allow_html=True,
+            )
 
 
 # ───────────────────────────── sidebar + tabs ──────────────────────────────

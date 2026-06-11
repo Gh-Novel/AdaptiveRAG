@@ -14,7 +14,7 @@ short_description: Agentic + Self-RAG + Modular RAG with visual pipeline UI
 ![Streamlit](https://img.shields.io/badge/UI-Streamlit-red)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-A production-grade RAG system where **every internal stage is visible live in the UI** — embedding vectors, routing decisions, dense vs. sparse hits, rank fusion, cross-encoder scores, self-critique, and self-healing. Built to demonstrate how a real retrieval pipeline works under the hood, not just that it works.
+A production-grade RAG system over **201 papers / 12,735 chunks** where **every internal stage is visible in a live dashboard** — retrieval explorer, pipeline inspector with per-stage tabs (embedding vector, router, planner, hybrid retrieval, rerank, critique, healing), and a final-answer panel with per-source scores. Built to demonstrate how a real retrieval pipeline works under the hood, not just that it works.
 
 **▶ Live demo:** https://huggingface.co/spaces/NoobNovel/AdaptiveRAG
 
@@ -111,7 +111,16 @@ The pipeline was load-tested beyond toy size and the bottlenecks were fixed, not
 
 ## Knowledge base
 
-14 foundational AI papers (Transformers, BERT, GPT-3, DDPM/DDIM, RAG, Self-RAG, HyDE, ViT, CLIP, ReAct, Chain-of-Thought, LLM surveys) — expandable to thousands via the arXiv bulk downloader.
+**201 papers · 12,735 chunks**, fully indexed and committed so the hosted demo
+answers instantly without ingesting:
+
+- **14 foundational papers** — Transformers, BERT, GPT-3, DDPM/DDIM, RAG,
+  Self-RAG, HyDE, ViT, CLIP, ReAct, Chain-of-Thought, LLM surveys
+- **187 recent arXiv papers** (cs.CL · cs.LG · cs.CV) pulled with
+  `download_arxiv.py`, including full metadata (title/authors/abstract)
+
+The ingestion pipeline is per-document incremental and checkpoint-resumable —
+scaling to 2,000+ papers is a ~30-minute run, not a redesign.
 
 ## Run locally
 
