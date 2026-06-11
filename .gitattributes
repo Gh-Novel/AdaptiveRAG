@@ -38,3 +38,4 @@ storage/chroma/chroma.sqlite3 filter=lfs diff=lfs merge=lfs -text
 storage/fts.db filter=lfs diff=lfs merge=lfs -text
 assets/*.mp4 filter=lfs diff=lfs merge=lfs -text
 assets/*.gif filter=lfs diff=lfs merge=lfs -text
+*.mov filter=lfs diff=lfs merge=lfs -text
