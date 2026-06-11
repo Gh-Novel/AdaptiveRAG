@@ -16,7 +16,7 @@ short_description: Agentic + Self-RAG + Modular RAG with visual pipeline UI
 
 A production-grade RAG system over **201 papers / 12,735 chunks** where **every internal stage is visible in a live dashboard** — retrieval explorer, pipeline inspector with per-stage tabs (embedding vector, router, planner, hybrid retrieval, rerank, critique, healing), and a final-answer panel with per-source scores. Built to demonstrate how a real retrieval pipeline works under the hood, not just that it works.
 
-**▶ Live demo:** https://huggingface.co/spaces/NoobNovel/AdaptiveRAG
+**▶ Live demo:** https://huggingface.co/spaces/novelkathor/AdaptiveRAG
 
 ![AdaptiveRAG dashboard demo](assets/demo.gif)
 
