@@ -59,37 +59,103 @@ if not os.environ.get("GROQ_API_KEY"):
 st.markdown(
     """
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  html, body, [class*="st-"], .stMarkdown { font-family: 'Inter', -apple-system, 'Segoe UI', sans-serif; }
+  code, pre, .mono { font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace !important; }
+  #MainMenu, footer { visibility: hidden; }
+
+  h1 { letter-spacing: -.02em; }
+  .app-sub { color: #8B949E; font-size: .9rem; margin-top: -0.4rem; }
+  .badge-row { margin: .35rem 0 1rem 0; }
+
+  /* step header */
   .phase-card {
-    border-left: 4px solid var(--accent, #4f8cff);
-    padding: .6rem 1rem;
-    margin: .25rem 0 .5rem 0;
-    background: rgba(79,140,255,0.06);
-    border-radius: 6px;
+    border-left: 2px solid #3D7EFF;
+    padding: .55rem .95rem;
+    margin: 1.15rem 0 .55rem 0;
+    background: linear-gradient(90deg, rgba(61,126,255,.07), transparent 65%);
+    border-radius: 0 4px 4px 0;
   }
-  .phase-num { color: #4f8cff; font-weight: 700; margin-right: .4rem; }
-  .pill { display: inline-block; padding: .15rem .55rem; border-radius: 999px;
-          font-size: .78rem; font-weight: 600; margin-right: .4rem; }
-  .pill-blue   { background: #1e3a5f; color: #9ec5ff; }
-  .pill-green  { background: #1e4f30; color: #a3e6b5; }
-  .pill-purple { background: #3d2a5e; color: #c8a8f5; }
-  .pill-amber  { background: #5e3f0e; color: #f3c97a; }
-  .pill-red    { background: #5a1f1f; color: #f3a3a3; }
-  .pill-grey   { background: #2c2c33; color: #b8b8c0; }
+  .phase-num  { font-family: 'JetBrains Mono', monospace; font-size: .67rem;
+                letter-spacing: .14em; color: #3D7EFF; font-weight: 600; }
+  .phase-title{ font-weight: 600; font-size: .98rem; color: #E6EDF3; }
+  .phase-sub  { color: #8B949E; font-size: .8rem; margin-top: .1rem; }
+
+  /* iteration divider */
+  .iter-rule { display: flex; align-items: center; gap: .9rem; margin: 1.8rem 0 .3rem; }
+  .iter-rule:before, .iter-rule:after { content: ''; flex: 1; height: 1px; background: #21262D; }
+  .iter-rule span { font-family: 'JetBrains Mono', monospace; font-size: .72rem;
+                    letter-spacing: .18em; color: #8B949E; }
+
+  /* pills (stage tags) */
+  .pill { display: inline-block; padding: .13rem .5rem; border-radius: 4px;
+          font-family: 'JetBrains Mono', monospace; font-size: .67rem;
+          font-weight: 500; letter-spacing: .05em; text-transform: uppercase;
+          margin-right: .45rem; border: 1px solid transparent; }
+  .pill-blue   { color: #79B8FF; border-color: rgba(121,184,255,.35); background: rgba(56,114,200,.10); }
+  .pill-green  { color: #56D364; border-color: rgba(86,211,100,.35);  background: rgba(46,160,67,.10); }
+  .pill-purple { color: #D2A8FF; border-color: rgba(210,168,255,.35); background: rgba(137,87,229,.10); }
+  .pill-amber  { color: #E3B341; border-color: rgba(227,179,65,.35);  background: rgba(187,128,9,.10); }
+  .pill-red    { color: #FF7B72; border-color: rgba(255,123,114,.35); background: rgba(218,54,51,.10); }
+  .pill-grey   { color: #8B949E; border-color: rgba(139,148,158,.30); background: rgba(110,118,129,.10); }
+
+  /* status chips */
+  .chip { display: inline-flex; align-items: center; gap: .45rem;
+          font-size: .8rem; font-weight: 500; padding: .28rem .65rem;
+          border-radius: 4px; border: 1px solid; margin-right: .5rem; }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .chip-ok   { color: #3FB950; border-color: rgba(63,185,80,.35);  background: rgba(63,185,80,.07); }
+  .chip-ok .dot   { background: #3FB950; }
+  .chip-warn { color: #D29922; border-color: rgba(210,153,34,.35); background: rgba(210,153,34,.07); }
+  .chip-warn .dot { background: #D29922; }
+  .chip-err  { color: #F85149; border-color: rgba(248,81,73,.35);  background: rgba(248,81,73,.07); }
+  .chip-err .dot  { background: #F85149; }
+  .chip-label { color: #8B949E; font-size: .7rem; text-transform: uppercase;
+                letter-spacing: .08em; margin-right: .3rem; }
+
+  /* metric restyle */
+  [data-testid="stMetricValue"] { font-family: 'JetBrains Mono', monospace; font-size: 1.35rem; }
+  [data-testid="stMetricLabel"] { color: #8B949E; text-transform: uppercase;
+                                  font-size: .68rem; letter-spacing: .08em; }
+
+  /* retrieved chunk cards */
   .chunk-card {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 6px; padding: .55rem .7rem; margin-bottom: .4rem;
-    font-size: .82rem;
+    background: rgba(255,255,255,.02);
+    border: 1px solid #21262D;
+    border-radius: 5px; padding: .55rem .75rem; margin-bottom: .4rem;
+    font-size: .82rem; line-height: 1.45;
   }
-  .chunk-meta { color: #9aa3b2; font-size: .73rem; margin-bottom: .25rem; }
-  .mini-vec {
-    font-family: 'SF Mono', Menlo, monospace; font-size: .68rem;
-    color: #8b949e; word-break: break-all;
-  }
+  .chunk-meta { color: #8B949E; font-size: .72rem; margin-bottom: .3rem;
+                font-family: 'JetBrains Mono', monospace; }
+
+  .mini-vec { font-family: 'JetBrains Mono', monospace; font-size: .68rem;
+              color: #8B949E; word-break: break-all; }
+
+  /* health bar */
+  .health-wrap { margin: .6rem 0 .9rem 0; }
+  .health-row  { display: flex; align-items: baseline; gap: .7rem; margin-bottom: .35rem; }
+  .health-label{ color: #8B949E; font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; }
+  .health-val  { font-family: 'JetBrains Mono', monospace; font-size: 1.25rem; font-weight: 600; }
+  .health-bar  { height: 5px; background: #21262D; border-radius: 3px; overflow: hidden; }
+  .health-fill { height: 100%; border-radius: 3px; }
 </style>
 """,
     unsafe_allow_html=True,
 )
+
+
+def chip(label: str, ok: bool | None, text_ok: str = "pass", text_bad: str = "flagged",
+         warn: bool = False) -> str:
+    """Small status chip: green/amber/red dot + text."""
+    if ok is None:
+        cls, txt = "chip-warn", text_bad
+    elif ok:
+        cls, txt = "chip-ok", text_ok
+    else:
+        cls, txt = ("chip-warn" if warn else "chip-err"), text_bad
+    return (f"<span class='chip-label'>{label}</span>"
+            f"<span class='chip {cls}'><span class='dot'></span>{txt}</span>")
 
 
 # ───────────────────────────── helpers ──────────────────────────────
@@ -105,9 +171,9 @@ def _load_manifest() -> dict:
 
 def phase_header(num: int, title: str, subtitle: str = "") -> None:
     st.markdown(
-        f"<div class='phase-card'><span class='phase-num'>STEP {num}</span>"
-        f"<b>{title}</b><br><span style='color:#9aa3b2;font-size:.85rem;'>{subtitle}</span>"
-        f"</div>",
+        f"<div class='phase-card'><div class='phase-num'>STEP {num:02d}</div>"
+        f"<div class='phase-title'>{title}</div>"
+        f"<div class='phase-sub'>{subtitle}</div></div>",
         unsafe_allow_html=True,
     )
 
@@ -217,57 +283,56 @@ def render_embedding_card(query: str, qv: list[float], dt: float) -> None:
 # ───────────────────────────── pipeline view ──────────────────────────────
 def _render_healing_trace(healing_trace: list[dict], health_score: float) -> None:
     """Render the healing trace panel below the answer."""
-    # Health score metric with colour
     if health_score >= 80:
-        color, label = "#2ecc71", "Healthy"
+        color, label = "#3FB950", "healthy"
     elif health_score >= 60:
-        color, label = "#f39c12", "Fair"
+        color, label = "#D29922", "fair"
     else:
-        color, label = "#e74c3c", "Needs healing"
+        color, label = "#F85149", "degraded"
     st.markdown(
-        f"<div style='display:flex;align-items:center;gap:1rem;margin:.5rem 0;'>"
-        f"<span style='font-size:1.1rem;font-weight:700;color:{color};'>"
-        f"⚕️ Health score: {health_score:.0f} / 100</span>"
-        f"<span class='pill' style='background:{color}22;color:{color};border:1px solid {color}44;'>"
-        f"{label}</span></div>",
+        f"<div class='health-wrap'>"
+        f"<div class='health-row'>"
+        f"<span class='health-label'>Answer health</span>"
+        f"<span class='health-val' style='color:{color};'>{health_score:.0f}<span "
+        f"style='color:#8B949E;font-size:.8rem;'> / 100 · {label}</span></span>"
+        f"</div>"
+        f"<div class='health-bar'><div class='health-fill' "
+        f"style='width:{health_score:.0f}%;background:{color};'></div></div>"
+        f"</div>",
         unsafe_allow_html=True,
     )
     if not healing_trace:
-        st.success("✅ Answer passed all checks on first attempt — no healing needed.")
+        st.caption("All checks passed on the first attempt — no healing required.")
         return
     for attempt in healing_trace:
         num = attempt.get("attempt", "?")
         healthy = attempt.get("healthy", False)
-        icon = "✅" if healthy else "🔧"
         issues = attempt.get("issues", [])
-        label_str = "Healthy" if healthy else f"Issues: {', '.join(issues)}"
-        with st.expander(f"{icon} Attempt {num} — {label_str}", expanded=not healthy):
+        label_str = ("all checks passed" if healthy
+                     else "issues: " + ", ".join(i.replace("_", " ") for i in issues))
+        with st.expander(f"Attempt {num} — {label_str}", expanded=not healthy):
             if healthy:
-                st.success("All checks passed — answer accepted.")
+                st.caption("All detectors clear — answer accepted as-is.")
                 continue
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Hallucination", "⚠️ yes" if "hallucination" in issues else "✅ no")
-            c2.metric("Low chunk quality", "⚠️ yes" if "low_chunk_quality" in issues else "✅ no")
-            c3.metric("Knowledge gap", "⚠️ yes" if "knowledge_gap" in issues else "✅ no")
+            st.markdown(
+                chip("grounding", "hallucination" not in issues)
+                + chip("chunk quality", "low_chunk_quality" not in issues, warn=True)
+                + chip("coverage", "knowledge_gap" not in issues, text_bad="gap detected"),
+                unsafe_allow_html=True,
+            )
+            st.markdown("")
             for action in attempt.get("actions", []):
                 atype = action.get("type", "")
                 detail = action.get("detail", "")
-                icons = {
-                    "hallucination_fix": "🔍",
-                    "chunk_expansion": "📎",
-                    "web_search": "🌐",
-                    "query_rewrite": "✏️",
-                    "regenerate": "🔄",
-                }
-                prefix = icons.get(atype, "•")
                 st.markdown(
-                    f"<div class='chunk-card'><span class='pill pill-grey'>{atype}</span>"
-                    f"{prefix} {detail}</div>",
+                    f"<div class='chunk-card'>"
+                    f"<span class='pill pill-grey'>{atype.replace('_', ' ')}</span>"
+                    f"{detail}</div>",
                     unsafe_allow_html=True,
                 )
                 if atype == "hallucination_fix":
                     for s in action.get("flagged_sentences", []):
-                        st.caption(f"  ↳ Flagged: \"{s[:120]}…\"")
+                        st.caption(f"flagged: “{s[:120]}…”")
 
 
 def visual_pipeline(query: str, enable_healing: bool = True) -> None:
@@ -319,7 +384,8 @@ def visual_pipeline(query: str, enable_healing: bool = True) -> None:
     current_query = query
 
     for it in range(AGENT_CONFIG["max_iterations"]):
-        st.markdown(f"---\n## 🔁 Iteration {it + 1}")
+        st.markdown(f"<div class='iter-rule'><span>ITERATION {it + 1}</span></div>",
+                    unsafe_allow_html=True)
         if current_query != query:
             st.info(f"Refined query → **{current_query}**")
 
@@ -377,11 +443,11 @@ def visual_pipeline(query: str, enable_healing: bool = True) -> None:
                 m4.metric("After rerank", len(reranked), f"{t_rerank*1000:.0f} ms")
 
                 tabs = st.tabs([
-                    "🔵 Dense (vectors)",
-                    "🟢 Sparse (BM25)",
-                    "🟣 RRF fusion",
-                    "🟡 Cross-encoder rerank",
-                    "🗺️ Vector space",
+                    "Dense · vectors",
+                    "Sparse · FTS5 BM25",
+                    "RRF fusion",
+                    "Cross-encoder rerank",
+                    "Vector space",
                 ])
                 with tabs[0]:
                     st.caption("Top-K nearest neighbors by cosine similarity.")
@@ -459,7 +525,7 @@ def visual_pipeline(query: str, enable_healing: bool = True) -> None:
 
         phase_header(5, "Context assembly + answer generation",
                      f"Top {len(unique)} unique passages → {LLM_CONFIG['model']} via {LLM_CONFIG['provider']}.")
-        with st.expander("📦 Context handed to the LLM", expanded=False):
+        with st.expander("Context handed to the LLM", expanded=False):
             for c in citations:
                 st.markdown(
                     f"**[{c['n']}]** {c['title']} · pages {c['page_start']}–{c['page_end']} · "
@@ -471,8 +537,9 @@ def visual_pipeline(query: str, enable_healing: bool = True) -> None:
         t0 = time.time()
         ANSWER_SYSTEM = (
             "You are a careful research assistant. Use ONLY the provided passages to "
-            "answer the question. Cite sources inline with [N] where N is the passage "
-            "number. If the passages are insufficient, say so explicitly."
+            "answer the question. Cite sources inline using the passage number in "
+            "square brackets, e.g. [1] or [2][3] — never write the placeholder '[N]'. "
+            "If the passages are insufficient, say so explicitly."
         )
         ANSWER_PROMPT = (
             f"Question: {query}\n\nPassages:\n{context_block}\n\n"
@@ -496,17 +563,21 @@ def visual_pipeline(query: str, enable_healing: bool = True) -> None:
                      "LLM scores its own answer for grounding + completeness.")
         t0 = time.time()
         crit = critique(query, answer, context_block, llm=llm)
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Grounded", "✅ yes" if crit["grounded"] else "⚠️ no")
-        c2.metric("Complete", "✅ yes" if crit["complete"] else "⚠️ no")
-        c3.metric("Confidence", f"{crit['confidence']:.2f}",
-                  delta=f"threshold {AGENT_CONFIG['confidence_threshold']:.2f}")
+        conf_color = "#3FB950" if crit["confidence"] >= AGENT_CONFIG["confidence_threshold"] else "#D29922"
+        st.markdown(
+            chip("grounded", crit["grounded"], text_ok="yes", text_bad="no")
+            + chip("complete", crit["complete"], text_ok="yes", text_bad="no", warn=True)
+            + f"<span class='chip-label'>confidence</span>"
+            f"<span class='chip' style='color:{conf_color};border-color:{conf_color}55;'>"
+            f"{crit['confidence']:.2f} / {AGENT_CONFIG['confidence_threshold']:.2f}</span>",
+            unsafe_allow_html=True,
+        )
         if crit.get("missing"):
             st.warning(f"Missing: {crit['missing']}")
         st.caption(f"Critique latency: {time.time()-t0:.1f} s")
 
         if crit["confidence"] >= AGENT_CONFIG["confidence_threshold"] and crit["grounded"]:
-            st.success(f"✓ Confidence {crit['confidence']:.2f} ≥ threshold — answer accepted.")
+            st.success(f"Confidence {crit['confidence']:.2f} ≥ threshold — answer accepted.")
             if enable_healing:
                 phase_header(
                     7, "Self-Healing layer",
@@ -554,7 +625,12 @@ def _sidebar() -> None:
     llm = _llm()
     ok = llm.health()
     backend = "Groq API" if HOSTED else "Ollama (local)"
-    st.sidebar.markdown(f"**LLM backend**: {'🟢' if ok else '🔴'} {backend}")
+    dot = "#3FB950" if ok else "#F85149"
+    st.sidebar.markdown(
+        f"**LLM backend**: <span style='display:inline-block;width:8px;height:8px;"
+        f"border-radius:50%;background:{dot};margin:0 .25rem 1px 0;'></span>{backend}",
+        unsafe_allow_html=True,
+    )
     st.sidebar.markdown(f"**Model**: `{LLM_CONFIG['model']}`")
     st.sidebar.markdown(f"**Embedder**: `{EMBEDDING_CONFIG['model'].split('/')[-1]}`")
     st.sidebar.markdown(f"**Reranker**: `bge-reranker-base`")
@@ -572,13 +648,13 @@ def _sidebar() -> None:
     st.sidebar.code(
         "question\n   ↓ embed (MiniLM)\n   ↓ Self-RAG router\n   ↓ planner → sub-queries\n"
         "   ↓ dense ∥ sparse\n   ↓ RRF fusion\n   ↓ cross-encoder rerank\n   ↓ LLM answer\n"
-        "   ↓ self-critique → retry?\n   ↓ self-healing ⚕️\n   → answer + citations",
+        "   ↓ self-critique → retry?\n   ↓ self-healing\n   → answer + citations",
         language="text",
     )
 
 
 def pipeline_tab() -> None:
-    st.subheader("🔬 Underhood: watch every stage of the agentic RAG pipeline")
+    st.subheader("Under the hood — every stage of the agentic RAG pipeline, live")
     st.caption(
         "Each step renders its inputs and outputs as it runs — embedding vector, "
         "router decision, planner sub-queries, dense vs sparse hits side-by-side, "
@@ -600,18 +676,18 @@ def pipeline_tab() -> None:
             st.session_state.vq = s
     q = st.text_area("Question", value=st.session_state.vq, height=80, key="vq_input")
     enable_healing = st.toggle(
-        "⚕️ Self-Healing",
+        "Self-Healing layer",
         value=True,
         help="After the answer is generated, run hallucination detection, chunk quality "
              "scoring, and knowledge-gap checks — regenerating if issues are found.",
     )
-    if st.button("▶ Run pipeline", type="primary"):
+    if st.button("Run pipeline", type="primary"):
         if q.strip():
             visual_pipeline(q.strip(), enable_healing=enable_healing)
 
 
 def image_tab() -> None:
-    st.subheader("🖼️ Multimodal RAG (Qwen3-VL)")
+    st.subheader("Multimodal Q&A (Qwen3-VL)")
     st.caption(
         "Upload an image (e.g. a figure from a paper). Qwen3-VL captions it, the "
         "caption + question drives hybrid retrieval, then the model reasons over "
@@ -648,7 +724,7 @@ def image_tab() -> None:
 
 def kb_tab() -> None:
     """Knowledge Base Versioning tab."""
-    st.subheader("📚 Knowledge Base Versioning")
+    st.subheader("Knowledge Base Versioning")
     st.caption(
         "Every ingest run creates a versioned snapshot of the index (kb_v1, kb_v2 …). "
         "Old snapshots are never deleted — rollback is a single metadata write. "
@@ -718,7 +794,7 @@ def kb_tab() -> None:
             format_func=lambda v: f"v{v}",
             key="kb_rollback_target",
         )
-        if st.button("⏪ Rollback", type="secondary"):
+        if st.button("Roll back", type="secondary"):
             try:
                 router.rollback(target)
                 st.success(f"Rolled back to v{target}. Reload the page to see updated metrics.")
@@ -738,7 +814,7 @@ def kb_tab() -> None:
         changed = v.get("docs_changed", 0)
         unchanged = v.get("docs_unchanged", 0)
         ts = (v.get("timestamp") or "")[:19].replace("T", " ")
-        badge = "🟢" if vnum == current else "⚪"
+        badge = "●" if vnum == current else "○"
         label = f"{badge} v{vnum}  —  {ts}  ·  +{added} added, ~{changed} changed, {unchanged} unchanged"
         with st.expander(label, expanded=(vnum == current)):
             cols = st.columns(4)
@@ -755,7 +831,7 @@ def kb_tab() -> None:
                 if docs:
                     st.markdown("**Documents active at this version:**")
                     for d in sorted(docs, key=lambda x: x["doc_id"]):
-                        status_icon = "✅" if d["status"] == "active" else "🗃️"
+                        status_icon = "●" if d["status"] == "active" else "○"
                         chk = (d.get("checksum") or "")[:12]
                         st.markdown(
                             f"{status_icon} `{d['doc_id']}` — "
@@ -788,7 +864,7 @@ def kb_tab() -> None:
     )
     qv_k = col_k.slider("Top-K", 3, 10, 5, key="kb_query_k")
 
-    if st.button("🔍 Query version", key="kb_query_btn"):
+    if st.button("Run query", key="kb_query_btn"):
         version_arg: str | int = (
             "latest"
             if qv_version == "latest"
@@ -852,16 +928,26 @@ def kb_tab() -> None:
 
 def main() -> None:
     _sidebar()
-    st.title("AdaptiveRAG 📚🔬")
-    st.caption(
-        "Agentic + Self-RAG + Modular RAG over your local paper library — "
-        f"powered by `{LLM_CONFIG['model']}` via **{LLM_CONFIG['provider']}**. "
-        "Every pipeline stage is exposed below."
+    st.title("AdaptiveRAG")
+    manifest = _load_manifest()
+    n_chunks = manifest.get("n_chunks", "—")
+    n_docs = len(manifest.get("chunks_per_doc", {}))
+    st.markdown(
+        f"<div class='app-sub'>Agentic · Self-RAG · Modular — every pipeline stage "
+        f"exposed live</div>"
+        f"<div class='badge-row'>"
+        f"<span class='pill pill-blue'>{LLM_CONFIG['provider']}</span>"
+        f"<span class='pill pill-grey'>{LLM_CONFIG['model']}</span>"
+        f"<span class='pill pill-purple'>{n_chunks} chunks</span>"
+        f"<span class='pill pill-purple'>{n_docs} papers</span>"
+        f"<span class='pill pill-green'>hybrid dense+FTS5</span>"
+        f"</div>",
+        unsafe_allow_html=True,
     )
     pipe, img, kb = st.tabs([
-        "🔬 Underhood pipeline",
-        "🖼️ Image Q&A (multimodal)",
-        "📚 Knowledge Base",
+        "Pipeline",
+        "Image Q&A",
+        "Knowledge Base",
     ])
     with pipe:
         pipeline_tab()

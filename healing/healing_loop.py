@@ -23,11 +23,14 @@ MAX_HEAL_ATTEMPTS = 3
 
 _ANSWER_SYSTEM = (
     "You are a careful research assistant. Use ONLY the provided passages to "
-    "answer the question. Cite inline with [N]. If passages are insufficient, say so."
+    "answer the question. Cite passages inline using their numbers in square "
+    "brackets, e.g. [1] or [2][3]. Never write the placeholder '[N]'. "
+    "If passages are insufficient, say so."
 )
 _ANSWER_PROMPT = (
     "Question: {question}\n\nPassages:\n{context}\n\n"
-    "Write a concise, well-grounded answer with inline [N] citations."
+    "Write a concise, well-grounded answer. Cite passages inline with their "
+    "numbers, like [1] or [2], matching the passage numbering above."
 )
 
 
@@ -114,6 +117,7 @@ def self_heal(
     current_citations = list(citations)
     healing_trace: list[dict] = []
     attempts_used = 0
+    already_expanded: set[str] = set()  # never expand the same chunk twice
 
     for attempt in range(MAX_HEAL_ATTEMPTS):
         log: dict = {
@@ -124,10 +128,18 @@ def self_heal(
         }
 
         # ── 1. Diagnose ────────────────────────────────────────────
-        unsupported = detect_hallucinations(current_answer, current_hits)
-        _, chunk_scores = score_and_expand(query, current_hits)
-        low_quality = [s for s in chunk_scores if s["needs_expansion"]]
-        gap = detect_knowledge_gap(current_answer, current_hits)
+        # Only diagnose the top-8 deduped hits — the ones that actually fed
+        # the answer. Scoring every accumulated hit made each round flag the
+        # raw neighbour fragments added by the previous round (6→18→28
+        # runaway expansion) and tanked the health score.
+        working = _dedupe(current_hits, limit=8)
+        unsupported = detect_hallucinations(current_answer, working)
+        _, chunk_scores = score_and_expand(query, working)
+        low_quality = [
+            s for s in chunk_scores
+            if s["needs_expansion"] and s["chunk_id"] not in already_expanded
+        ]
+        gap = detect_knowledge_gap(current_answer, working)
 
         if unsupported:
             log["issues"].append("hallucination")
@@ -136,7 +148,11 @@ def self_heal(
         if gap:
             log["issues"].append("knowledge_gap")
 
-        if not log["issues"]:
+        # Low chunk quality alone is advisory, not blocking: the completeness
+        # heuristic penalises overlap-chunked passages that legitimately start
+        # mid-thought, so it must not drive regenerate rounds by itself.
+        blocking = unsupported or gap
+        if not blocking:
             log["healthy"] = True
             healing_trace.append(log)
             break
@@ -172,6 +188,7 @@ def self_heal(
             )
             seen = {h.chunk_id for h in current_hits}
             for lq in low_quality:
+                already_expanded.add(lq["chunk_id"])
                 orig = next(
                     (h for h in current_hits if h.chunk_id == lq["chunk_id"]), None
                 )
@@ -197,12 +214,12 @@ def self_heal(
                 # No Tavily key — expand coverage with multi-query rewriting
                 rw_hits = multi_query_retrieve(query, llm=llm, top_n=4)
                 seen = {h.chunk_id for h in current_hits}
-                added = sum(
-                    1
-                    for h in rw_hits
-                    if h.chunk_id not in seen
-                    and not current_hits.append(h)  # side-effect add
-                )
+                added = 0
+                for h in rw_hits:
+                    if h.chunk_id not in seen:
+                        current_hits.append(h)
+                        seen.add(h.chunk_id)
+                        added += 1
                 log["actions"].append(
                     {
                         "type": "query_rewrite",
@@ -228,10 +245,11 @@ def self_heal(
         )
         healing_trace.append(log)
 
-    # ── Final health score ─────────────────────────────────────────
-    final_unsupported = detect_hallucinations(current_answer, current_hits)
-    _, final_scores = score_and_expand(query, current_hits)
-    final_gap = detect_knowledge_gap(current_answer, current_hits)
+    # ── Final health score (scored on the hits that fed the answer) ──
+    final_working = _dedupe(current_hits, limit=8)
+    final_unsupported = detect_hallucinations(current_answer, final_working)
+    _, final_scores = score_and_expand(query, final_working)
+    final_gap = detect_knowledge_gap(current_answer, final_working)
     health = _health_score(current_answer, final_unsupported, final_scores, final_gap)
 
     return HealingResult(

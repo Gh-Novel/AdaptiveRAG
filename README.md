@@ -66,6 +66,24 @@ https://github.com/user-attachments/assets/5ae152da-00bd-4812-9743-2aaab1ffc5d6
 | **Multimodal Q&A** | Image → caption → hybrid retrieve → vision-LLM reasons over image + passages | Figure-level questions on papers (local Qwen3-VL) |
 | **Underhood UI** | Every stage renders its actual inputs/outputs as it runs, incl. 2D PCA projection of the query + hit embeddings | You can *watch* RRF change the ranking |
 
+## Measured retrieval quality
+
+Evaluated on a synthetic golden set: 100 questions LLM-generated from randomly
+sampled chunks across the 201-paper corpus (a retriever that can't find the chunk
+a question was written from has failed). Methodology + harness in [`eval/`](eval/).
+
+| Retrieval mode | chunk recall@5 | doc recall@5 | MRR | p50 latency |
+|---|---|---|---|---|
+| Dense only (MiniLM + Chroma) | 49% | 69% | 0.368 | 12 ms |
+| Sparse only (SQLite FTS5 BM25) | 87% | 93% | 0.683 | 17 ms |
+| Hybrid RRF (no rerank) | 80% | 93% | 0.536 | 28 ms |
+| **Hybrid + cross-encoder rerank** | **90%** | **96%** | **0.772** | 1.3 s |
+
+Notable: synthetic questions share vocabulary with their source chunks, which
+favours lexical (BM25) retrieval — yet the cross-encoder rerank still lifts the
+final pipeline above either component alone, and dense retrieval remains essential
+for paraphrased real-world queries that don't share keywords.
+
 ## Engineered for scale (2,000+ papers)
 
 The pipeline was load-tested beyond toy size and the bottlenecks were fixed, not hidden:

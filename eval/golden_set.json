@@ -1,0 +1,602 @@
+[
+ {
+  "question": "What are the precision, recall, and mAP (IoU=0.5:0.95) scores achieved by the YOLO model in the evaluation?",
+  "chunk_id": "2606_10699::c0054",
+  "doc_id": "2606_10699",
+  "title": "Using the YOLOv12 Model for Verifying the Correct Color Sequence of Wires in Network Cables (Patch Cords) on the Production Line"
+ },
+ {
+  "question": "What are the normalized eigenfunctions and their corresponding eigenvalues for the given integral operator?",
+  "chunk_id": "2606_11156::c0044",
+  "doc_id": "2606_11156",
+  "title": "It\u00f4 maps for any-step SDEs"
+ },
+ {
+  "question": "What does the joint dependence error term measure in the context of parallel unmasking?",
+  "chunk_id": "2606_10829::c0010",
+  "doc_id": "2606_10829",
+  "title": "Attention-Discounted Adaptive Sampler for Masked Diffusion Language Models"
+ },
+ {
+  "question": "What are the FVD, FID, SSIM, CSIM, Sync-D, and Sync-C scores for Lip Forcing (14B) on the TalkVid evaluation?",
+  "chunk_id": "2606_11180::c0078",
+  "doc_id": "2606_11180",
+  "title": "Lip Forcing: Few-Step Autoregressive Diffusion for Real-time Lip Synchronization"
+ },
+ {
+  "question": "What are the limitations of the current study in terms of task scope?",
+  "chunk_id": "2606_10875::c0029",
+  "doc_id": "2606_10875",
+  "title": "Pushing the Limits of LLM Tool Calling via Experiential Knowledge Integration and Activation"
+ },
+ {
+  "question": "What is the impact of adding the LDSSIM loss on fine structure preservation in tasks like de-blurring and segmentation?",
+  "chunk_id": "2606_10905::c0015",
+  "doc_id": "2606_10905",
+  "title": "Beyond Model Size: Probing the Gaps in Visual in-Context Learning by Training a Tiny Model"
+ },
+ {
+  "question": "What is gradient checkpointing and how does it help optimize memory usage during backpropagation?",
+  "chunk_id": "14_llm_survey::c0413",
+  "doc_id": "14_llm_survey",
+  "title": "A Survey of Large Language Models (Zhao et al., 2023)"
+ },
+ {
+  "question": "What is the performance of zero-shot GPT-3 compared to recent unsupervised NMT results?",
+  "chunk_id": "03_gpt3::c0041",
+  "doc_id": "03_gpt3",
+  "title": "Language Models are Few-Shot Learners (GPT-3, Brown et al., 2020)"
+ },
+ {
+  "question": "What is topic-sensitive pagerank and where was it presented?",
+  "chunk_id": "2606_10694::c0064",
+  "doc_id": "2606_10694",
+  "title": "REAL: A Reasoning-Enhanced Graph Framework for Long-Term Memory Management of LLMs"
+ },
+ {
+  "question": "How much does removing loopback verification decrease Acc@0.50?",
+  "chunk_id": "2606_10594::c0026",
+  "doc_id": "2606_10594",
+  "title": "Segment and Select: Vision-Language Segmentation in 3D Scenarios"
+ },
+ {
+  "question": "Which organizations provided hardware or compute infrastructure support for the UK camera-trap deployments mentioned in the paper?",
+  "chunk_id": "2606_10940::c0050",
+  "doc_id": "2606_10940",
+  "title": "Democratising Camera Trap AI: An Open-Source Model for Detecting UK Mammals"
+ },
+ {
+  "question": "Do larger models always exhibit lower hallucination rates?",
+  "chunk_id": "2606_11105::c0025",
+  "doc_id": "2606_11105",
+  "title": "PhantomBench: Benchmarking the Non-existential Threat of Language Models"
+ },
+ {
+  "question": "What is the title of the paper by Corey Lynch et al. published in IEEE Robotics and Automation Letters in 2023?",
+  "chunk_id": "2606_10918::c0036",
+  "doc_id": "2606_10918",
+  "title": "Task Robustness via Re-Labelling Vision-Action Robot Data"
+ },
+ {
+  "question": "What optimization algorithm and learning rate were used for training the SIREN model in MRI-NUFFT?",
+  "chunk_id": "2606_10756::c0009",
+  "doc_id": "2606_10756",
+  "title": "DD-INR: Dynamics-Driven Implicit Neural Representation for Accelerated Whole-Brain Functional MRI Reconstruction"
+ },
+ {
+  "question": "What is the performance impact of ablating different components in the MC Maze model as shown in Table 3?",
+  "chunk_id": "2606_11066::c0036",
+  "doc_id": "2606_11066",
+  "title": "GRAFT: Gain-Recalibrated Adapters for Transformer-Based Neural Population Activity Modeling"
+ },
+ {
+  "question": "What is the title of the paper by Nanye Ma et al. published in 2024?",
+  "chunk_id": "2606_11096::c0035",
+  "doc_id": "2606_11096",
+  "title": "IDEAL: In-DEpth ALignment Makes A Discrete Representation AutoEncoder"
+ },
+ {
+  "question": "What variables are included in the processed variable set for the Alzheimer benchmark?",
+  "chunk_id": "2606_10607::c0050",
+  "doc_id": "2606_10607",
+  "title": "Causal Ensemble Agent: Hierarchical Causal Discovery with LLM-guided Expert Reweighting"
+ },
+ {
+  "question": "What is the title of the book published in 2012 by Springer that discusses the Finite Element Method?",
+  "chunk_id": "2606_10928::c0063",
+  "doc_id": "2606_10928",
+  "title": "A Constrained Natural-Language Interface for Variational Multi-Physics Finite Element Simulations in FEniCS"
+ },
+ {
+  "question": "What is the main advantage of using code as a representation for 3D scene editing compared to point-cloud-based methods?",
+  "chunk_id": "2606_10478::c0003",
+  "doc_id": "2606_10478",
+  "title": "3D-CoS: A New 3D Reconstruction Paradigm Based on VLM Code Synthesis"
+ },
+ {
+  "question": "How does training a Gaussian diffusion model relate to training an autoregressive model?",
+  "chunk_id": "04_ddpm::c0019",
+  "doc_id": "04_ddpm",
+  "title": "Denoising Diffusion Probabilistic Models (Ho et al., 2020)"
+ },
+ {
+  "question": "What does Pass^K measure in the context of repeated trial executions?",
+  "chunk_id": "2606_11070::c0016",
+  "doc_id": "2606_11070",
+  "title": "T1-Bench: Benchmarking Multi-Scenario Agents in Real-World Domains"
+ },
+ {
+  "question": "What is the title of the paper by C. Snell et al. published in 2024?",
+  "chunk_id": "2606_10403::c0033",
+  "doc_id": "2606_10403",
+  "title": "KCSAT-ML: Probing Reasoning Models with Nationwide-Cohort Human Difficulty"
+ },
+ {
+  "question": "What does the aggregation target measure when multiple responses are acceptable for the same prompt?",
+  "chunk_id": "2606_10569::c0009",
+  "doc_id": "2606_10569",
+  "title": "Hidden Consensus:Preference-Validity Compression in Human Feedback"
+ },
+ {
+  "question": "What conditions allow for conserved quantities to arise under gradient-flow training in neural networks with data symmetries?",
+  "chunk_id": "2606_10913::c0025",
+  "doc_id": "2606_10913",
+  "title": "Conservation Laws from Data Symmetry in Neural Networks"
+ },
+ {
+  "question": "What condition ensures that the student distribution coincides with the teacher distribution according to Theorem 4.3?",
+  "chunk_id": "2606_11155::c0019",
+  "doc_id": "2606_11155",
+  "title": "Mean Flow Distillation: Robust and Stable Distillation for Flow Matching Models"
+ },
+ {
+  "question": "What are the two core vulnerabilities of Computer Use Agents that the error taxonomy addresses?",
+  "chunk_id": "2606_11078::c0047",
+  "doc_id": "2606_11078",
+  "title": "A History-Aware Visually Grounded Critic for Computer Use Agents"
+ },
+ {
+  "question": "What hardware was used to accelerate the neural network forward passes in the Learned Policy Framework?",
+  "chunk_id": "2606_10611::c0038",
+  "doc_id": "2606_10611",
+  "title": "Geometry-Aware Reinforcement Learning for 2D Irregular Nesting"
+ },
+ {
+  "question": "How can Low-Rank Approximation be integrated into quantum image processing pipelines to improve efficiency and scalability?",
+  "chunk_id": "2606_10874::c0028",
+  "doc_id": "2606_10874",
+  "title": "Schmidt Decomposition-Based Methods for Efficient Quantum Image Encoding"
+ },
+ {
+  "question": "Which datasets are used in the evaluation of the RAG models and how are smaller datasets like CuratedTrec and WebQuestions handled?",
+  "chunk_id": "06_rag_original::c0013",
+  "doc_id": "06_rag_original",
+  "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP (Lewis et al., 2020)"
+ },
+ {
+  "question": "What are the key advantages of Eevee in mixed-dataset prompt learning compared to other methods?",
+  "chunk_id": "2606_11182::c0025",
+  "doc_id": "2606_11182",
+  "title": "EEVEE: Towards Test-time Prompt Learning in the Real World for Self-Improving Agents"
+ },
+ {
+  "question": "What are the hyperparameters used for training Qwen2.5-7B-Instruct and Llama3-8B-Instruct in the study?",
+  "chunk_id": "2606_10528::c0014",
+  "doc_id": "2606_10528",
+  "title": "Representation-Aware Advantage Estimation: Your Reward Model Provides More Than A Scalar Output"
+ },
+ {
+  "question": "What is the title of the paper by Nastaran Okati, Abir De, and Manuel Gomez-Rodriguez published in 2021?",
+  "chunk_id": "2606_10906::c0046",
+  "doc_id": "2606_10906",
+  "title": "Human-AI Teaming Through the Lens of Calibration"
+ },
+ {
+  "question": "What command is used to concatenate files?",
+  "chunk_id": "13_chain_of_thought::c0117",
+  "doc_id": "13_chain_of_thought",
+  "title": "Chain-of-Thought Prompting Elicits Reasoning (Wei et al., 2022)"
+ },
+ {
+  "question": "What are the main contributions of the paper on GUI-AC?",
+  "chunk_id": "2606_10522::c0007",
+  "doc_id": "2606_10522",
+  "title": "GUI-AC: Enhancing Continual Learning in GUI Agents"
+ },
+ {
+  "question": "What is the title of the paper by Yuxiang Wu from 2025?",
+  "chunk_id": "2606_11045::c0030",
+  "doc_id": "2606_11045",
+  "title": "What Fits (Into Few Tokens) Doesn't Overfit: Compression and Generalization in ML Research Agents"
+ },
+ {
+  "question": "How does ++nnU-Net improve upon nnU-Net in medical image segmentation tasks?",
+  "chunk_id": "2606_10713::c0001",
+  "doc_id": "2606_10713",
+  "title": "++nnU-Net: Scaling nnU-Net with Prefix-Based Data Augmentation"
+ },
+ {
+  "question": "How does FadeMem improve long-horizon video generation under a fixed KV cache budget?",
+  "chunk_id": "2606_10671::c0027",
+  "doc_id": "2606_10671",
+  "title": "FadeMem: Distance-Aware Memory Consolidation for Autoregressive Video Diffusion"
+ },
+ {
+  "question": "What are the three widely used real-world LLVE datasets on which the method is evaluated?",
+  "chunk_id": "2606_11186::c0019",
+  "doc_id": "2606_11186",
+  "title": "AnyMod-LLVE: Low-Light Video Enhancement with Modality-Agnostic Inference"
+ },
+ {
+  "question": "What is the key insight from the paper regarding flattening dimensions in PEFTs?",
+  "chunk_id": "2606_10488::c0039",
+  "doc_id": "2606_10488",
+  "title": "5% > 100%: Flatness Preference is All You Need for Multimodal Parameter-Efficient Fine-Tuning"
+ },
+ {
+  "question": "What is the platform manager's objective in this dynamic marketplace setting?",
+  "chunk_id": "2606_11118::c0005",
+  "doc_id": "2606_11118",
+  "title": "Data-Driven Dynamic Assortment in Online Platforms: Learning about Two Sides"
+ },
+ {
+  "question": "What is the best accuracy achieved by the gated fusion approach in the multimodal brain tumor classification model?",
+  "chunk_id": "2606_11107::c0000",
+  "doc_id": "2606_11107",
+  "title": "Multimodal Brain Tumour Classification Using Feature Fusion"
+ },
+ {
+  "question": "How efficient is training-free corruption detection for large-scale dataset auditing?",
+  "chunk_id": "2606_10666::c0030",
+  "doc_id": "2606_10666",
+  "title": "Analyzing Training-Free Corruption Detection for Object Detection Datasets"
+ },
+ {
+  "question": "What datasets are used to assess model performance across diverse distributions and tasks?",
+  "chunk_id": "11_clip::c0142",
+  "doc_id": "11_clip",
+  "title": "Learning Transferable Visual Models from Natural Language Supervision (CLIP, Radford et al., 2021)"
+ },
+ {
+  "question": "What are the three stages of the data generation process described in the analysis?",
+  "chunk_id": "2606_11009::c0011",
+  "doc_id": "2606_11009",
+  "title": "Who Brought Easter Eggs to Eid? Auditing Cultural Translation of Math Word Problems Across Diverse Languages and Regions"
+ },
+ {
+  "question": "What are the accuracy scores for the Baseline model across CCBench, Hallusion, MathVista, MMBench, MMMU, MMStar, and SEEDBench benchmarks?",
+  "chunk_id": "2606_11074::c0013",
+  "doc_id": "2606_11074",
+  "title": "Modeling Complex Behaviors: Multi-Personality Composition and Dynamic Switching in Vision-Language Models"
+ },
+ {
+  "question": "What models were used for summarization and verification in the described system?",
+  "chunk_id": "2606_10640::c0021",
+  "doc_id": "2606_10640",
+  "title": "ChartLens: A Dual-Branch Framework for Chart Data Correction and Factual Summary Refinement"
+ },
+ {
+  "question": "What is the title of the paper by Q. Zhang, S. Wen, and T. Hu presented at MM '24?",
+  "chunk_id": "2606_10912::c0023",
+  "doc_id": "2606_10912",
+  "title": "What Do Deepfake Speech Detectors Actually Hear?"
+ },
+ {
+  "question": "What is the position error distribution for the generalist policy compared to specialists and bespoke policies in trajectory tracking?",
+  "chunk_id": "2606_10857::c0020",
+  "doc_id": "2606_10857",
+  "title": "Embodiment-conditioned Generalist Control for Multirotor Aerial Robots"
+ },
+ {
+  "question": "How are patient-level diagnostic scores calculated in the described cell-to-patient pipeline?",
+  "chunk_id": "2606_10735::c0005",
+  "doc_id": "2606_10735",
+  "title": "Patient-Level Diagnosis of Acute Myeloid Leukemia via Deep Learning Analysis of Bone Marrow Smear"
+ },
+ {
+  "question": "What is the purpose of using small stochastic perturbations in attribution analysis?",
+  "chunk_id": "2606_10877::c0022",
+  "doc_id": "2606_10877",
+  "title": "XtrAIn: Training-Guided Occlusion for Feature Attribution"
+ },
+ {
+  "question": "What are the key factors to consider when approving a pilot rollout of B17 for key SKUs?",
+  "chunk_id": "2606_10852::c0052",
+  "doc_id": "2606_10852",
+  "title": "Janus: A Benchmark for Goal-Conditioned Information Distortion in LLMs"
+ },
+ {
+  "question": "What are some recent papers on watermarking for LLMs?",
+  "chunk_id": "2606_10813::c0030",
+  "doc_id": "2606_10813",
+  "title": "RedAct: Redacting Agent Capability Traces for Procedural Skill Protection"
+ },
+ {
+  "question": "What are the three architectural refinements introduced in HarmoView to improve identity-consistent video generation with multi-view inputs?",
+  "chunk_id": "2606_10839::c0000",
+  "doc_id": "2606_10839",
+  "title": "HarmoView: Harmonizing Multi-View Constraints for Identity-Consistent Video Generation"
+ },
+ {
+  "question": "How is the final voxel-wise accumulated uncertainty computed in the given method?",
+  "chunk_id": "2606_11012::c0026",
+  "doc_id": "2606_11012",
+  "title": "An Uncertainty Estimation Framework for Dose Accumulation in Adaptive Radiotherapy: Application to CBCT-Guided Radiotherapy for Cervical Cancer"
+ },
+ {
+  "question": "How does ParaBridge's performance on VoxSafeBench change with increasing training data size?",
+  "chunk_id": "2606_10581::c0024",
+  "doc_id": "2606_10581",
+  "title": "ParaBridge: Bridging Paralinguistic Perception and Dialogue Behavior in Speech Language Models"
+ },
+ {
+  "question": "What are the dimensions of the projection matrices WQ_i, WK_i, and WV_i in the multi-head attention mechanism described?",
+  "chunk_id": "01_attention_is_all_you_need::c0010",
+  "doc_id": "01_attention_is_all_you_need",
+  "title": "Attention Is All You Need (Vaswani et al., 2017)"
+ },
+ {
+  "question": "What is the update rule for \u03b8 in the algorithm described?",
+  "chunk_id": "2606_11075::c0068",
+  "doc_id": "2606_11075",
+  "title": "Exploring the Design Space of Reward Backpropagation for Flow Matching"
+ },
+ {
+  "question": "What metrics and protocols can fairly evaluate data-journalism articles produced by humans or agents?",
+  "chunk_id": "2606_11176::c0024",
+  "doc_id": "2606_11176",
+  "title": "Data Journalist Agent: Transforming Data into Verifiable Multimodal Stories"
+ },
+ {
+  "question": "What is the title of the Qwen3-vl technical report?",
+  "chunk_id": "2606_10423::c0031",
+  "doc_id": "2606_10423",
+  "title": "WebChallenger: A Reliable and Efficient Generalist Web Agent"
+ },
+ {
+  "question": "What is the selection bias in uniform gossip under Bernoulli chunk loss and how does it depend on model disagreement and loss rate?",
+  "chunk_id": "2606_10774::c0021",
+  "doc_id": "2606_10774",
+  "title": "Inverse Probability Weighting and Age-of-Information Aggregation for Decentralized Federated Learning under Partial Reception"
+ },
+ {
+  "question": "What is \u03bb-DLQL and how does it interpolate between one-step and longer-horizon updates?",
+  "chunk_id": "2606_10835::c0023",
+  "doc_id": "2606_10835",
+  "title": "Geometrically Averaged Hard Target Updates for Linear Q-Learning"
+ },
+ {
+  "question": "What is the average performance score of ParetoQ on Llama-3-8B compared to other quantization methods?",
+  "chunk_id": "2606_10531::c0026",
+  "doc_id": "2606_10531",
+  "title": "LC-QAT: Data-Efficient 2-Bit QAT for LLMs via Linear-Constrained Vector Quantization"
+ },
+ {
+  "question": "What does the learned mapping W encode in terms of amino-acid preferences?",
+  "chunk_id": "2606_11057::c0113",
+  "doc_id": "2606_11057",
+  "title": "Flexible Kernels for Protein Property Prediction"
+ },
+ {
+  "question": "What is the ethical basis for using publicly available de-identified data without additional informed consent?",
+  "chunk_id": "2606_11125::c0029",
+  "doc_id": "2606_11125",
+  "title": "DMT: Demographic Conditioning, Morphology-Enhanced Transformer for Cuffless Blood Pressure Estimation from PPG Signals"
+ },
+ {
+  "question": "What is the formula for computing the output Y in an IR block of the PENet+ model?",
+  "chunk_id": "2606_10939::c0019",
+  "doc_id": "2606_10939",
+  "title": "PENet+: A Lightweight Residual Transformer Framework for Efficient Image Steganalysis"
+ },
+ {
+  "question": "What is the value of r\u00b2 + s\u00b2 for an isosceles trapezoid with an inscribed circle of radius 3 and area 72, where r \u2260 s?",
+  "chunk_id": "2606_10768::c0036",
+  "doc_id": "2606_10768",
+  "title": "N-GRPO: Embedding-Level Neighbor Mixing for Enhanced Policy Optimization"
+ },
+ {
+  "question": "What EEG-based metric is used in this study to detect early signs of dementia transition from MCI?",
+  "chunk_id": "2606_10889::c0006",
+  "doc_id": "2606_10889",
+  "title": "Sleep EEG Signal Criticality as a Non-Invasive Predictor of Cognitive Decline in Dementia"
+ },
+ {
+  "question": "What is the title of the paper by Bo Peng et al. published on arXiv:2305.13048 in 2023?",
+  "chunk_id": "2606_10435::c0052",
+  "doc_id": "2606_10435",
+  "title": "Parallel Causal Associative Fields: Gated Sparse Memory for Long-Context Language Modeling"
+ },
+ {
+  "question": "Why does an unpersonalized popularity baseline often outperform personalized models in recommendation and summarization?",
+  "chunk_id": "2606_10398::c0016",
+  "doc_id": "2606_10398",
+  "title": "Selection, Not Salience: The Shape and Limits of Personalization in Social Highlighting"
+ },
+ {
+  "question": "What is the LoRA rank and alpha used in the fine-tuning process?",
+  "chunk_id": "2606_11127::c0036",
+  "doc_id": "2606_11127",
+  "title": "Provenance-Grounded Gating and Adaptive Recovery in Synthetic Post-Training Data Curation"
+ },
+ {
+  "question": "Can a data-driven machine learning pipeline accurately predict which runway exit an arriving aircraft will use and whether it will cross an active departure runway or take an end-around taxiway at a complex, high-throughput airport?",
+  "chunk_id": "2606_11017::c0004",
+  "doc_id": "2606_11017",
+  "title": "Data-Driven Runway and Taxiway Exits Prediction of Landing Aircraft: A Case Study at Hartsfield-Jackson Atlanta International Airport"
+ },
+ {
+  "question": "What is the probability that algorithm A succeeds at positions i1 < \u00b7\u00b7\u00b7 < ik, and how is it related to the integral of the marginal density over a specific region?",
+  "chunk_id": "2606_11130::c0106",
+  "doc_id": "2606_11130",
+  "title": "Robust Regression of General ReLUs with Queries"
+ },
+ {
+  "question": "What is the title of the paper by Le, Yunhsuan Sung, Zhen Li, and Tom Duerig from 2021?",
+  "chunk_id": "2606_10696::c0013",
+  "doc_id": "2606_10696",
+  "title": "Don't waste SAM"
+ },
+ {
+  "question": "What is the purpose of generating random permutations \u03c0n for each user in the offline phase?",
+  "chunk_id": "2606_10780::c0009",
+  "doc_id": "2606_10780",
+  "title": "Secure Aggregation with Top-K Sparsification in Decentralized Federated Learning"
+ },
+ {
+  "question": "What is the minimum effect size for a large effect in Cliff\u2019s \u03b4?",
+  "chunk_id": "2606_11082::c0017",
+  "doc_id": "2606_11082",
+  "title": "The Shibboleth Effect: Auditing the Cross-Lingual Distributional Skew of Large Language Models"
+ },
+ {
+  "question": "What visualization methods were used to show embedding-level perturbations caused by different noise types?",
+  "chunk_id": "2606_10610::c0051",
+  "doc_id": "2606_10610",
+  "title": "Small Data, Big Noise: Adversarial Training for Robust Parameter-Efficient Fine-Tuning"
+ },
+ {
+  "question": "Why does v2 outperform mxbai top500 on certain slices despite having a weaker scorer?",
+  "chunk_id": "2606_10842::c0024",
+  "doc_id": "2606_10842",
+  "title": "ConvMemory v2: A Recall-Preserving Top-10 Evidence Reranker for Conversational Memory Retrieval"
+ },
+ {
+  "question": "How are references whitened and projected in the R-SEM method?",
+  "chunk_id": "2606_10769::c0012",
+  "doc_id": "2606_10769",
+  "title": "ZODS-RS -- Zero-training Oriented Detection & Segmentation for Remote Sensing"
+ },
+ {
+  "question": "What is the average training step time and credit assignment overhead for FlowTracer with Qwen3-4B model and 1K context length?",
+  "chunk_id": "2606_10646::c0032",
+  "doc_id": "2606_10646",
+  "title": "How Does Reasoning Flow? Tracing Attention-Induced Information Flow for Targeted RL in LLMs"
+ },
+ {
+  "question": "What is the lower bound on Bayes regret under the uniform cloud prior in terms of S, T, and P{\u03c4 > T}?",
+  "chunk_id": "2606_11171::c0027",
+  "doc_id": "2606_11171",
+  "title": "Algorithmic and Minimax Complexities in Kernel Bandits"
+ },
+ {
+  "question": "What is the title of the book chapter by Nielsen on hierarchical clustering in HPC with MPI for Data Science?",
+  "chunk_id": "2606_10781::c0034",
+  "doc_id": "2606_10781",
+  "title": "Recovering the Zipfian Distribution in Unsupervised Term Discovery"
+ },
+ {
+  "question": "What reinforcement learning method was used to optimize the structured output capability in the training process?",
+  "chunk_id": "2606_10894::c0015",
+  "doc_id": "2606_10894",
+  "title": "The 1st PortraitCraft Challenge: A CVPR 2026 Workshop Competition on Portrait Composition Understanding and Generation"
+ },
+ {
+  "question": "What is the dominant stabilizer of long-horizon autoregressive rollout on oscillatory signals according to the study?",
+  "chunk_id": "2606_10868::c0033",
+  "doc_id": "2606_10868",
+  "title": "When Do Autoregressive Sequence Models Forecast Physical Wavefields? A Controlled Study on Synthetic Seismograms"
+ },
+ {
+  "question": "What is the speedup improvement when k=3 compared to higher values in the CLP framework?",
+  "chunk_id": "2606_10935::c0036",
+  "doc_id": "2606_10935",
+  "title": "CLP: Collocation-Length Prediction for Zero-Loss Adaptive Multi-Token Inference"
+ },
+ {
+  "question": "What noise levels were tested in the experiment and how many iterations were used for each?",
+  "chunk_id": "2606_10975::c0022",
+  "doc_id": "2606_10975",
+  "title": "Learning Doubly Sparse Explicitly Conditioned Transforms"
+ },
+ {
+  "question": "How does speculative decoding help reduce inference latency in autoregressive image models?",
+  "chunk_id": "2606_10492::c0003",
+  "doc_id": "2606_10492",
+  "title": "PathRelax: Parallel-Path Relaxed Speculative Jacobi Decoding for Accelerating Auto-Regressive Text-to-Image Generation"
+ },
+ {
+  "question": "What pixel side length per node minimizes the gap in the sensitivity study?",
+  "chunk_id": "2606_10431::c0056",
+  "doc_id": "2606_10431",
+  "title": "Vision-Assisted Foundation Model for Solving Multi-Task Vehicle Routing Problems"
+ },
+ {
+  "question": "What is the title of the paper by J. (2025) presented at the Annual Conference of the PHM Society?",
+  "chunk_id": "2606_10959::c0033",
+  "doc_id": "2606_10959",
+  "title": "Population-Aware Physics-Informed Neural Particle Flow for Bayesian Update"
+ },
+ {
+  "question": "What is the title of the paper by H. Kinnunen, N. Evans, K. A. Lee, and J. Yamagishi presented at ASVspoof 2024?",
+  "chunk_id": "2606_10908::c0023",
+  "doc_id": "2606_10908",
+  "title": "RAT: Reference-Augmented Training for ASV Anti-Spoofing"
+ },
+ {
+  "question": "Does the paper include theoretical results?",
+  "chunk_id": "2606_11123::c0057",
+  "doc_id": "2606_11123",
+  "title": "Overcoming Rank Collapse in Feedback Alignment"
+ },
+ {
+  "question": "What retrieval tools are included in the default setup for inspecting a library catalog?",
+  "chunk_id": "2606_10677::c0017",
+  "doc_id": "2606_10677",
+  "title": "Infini Memory: Maintainable Topic Documents for Long-Term LLM Agent Memory"
+ },
+ {
+  "question": "What are the computational constraints introduced by coupling a slide-level aggregator to tile-level foundation models for WSI predictions?",
+  "chunk_id": "2606_10778::c0009",
+  "doc_id": "2606_10778",
+  "title": "From Patches to Patients: A study of the tile-to-slide performance transferability in Digital Pathology"
+ },
+ {
+  "question": "Which LLMs were experimented with in RQ3 to assess the adaptability of GenAIR?",
+  "chunk_id": "2606_11023::c0029",
+  "doc_id": "2606_11023",
+  "title": "Generative Archetype-Grounded Item Representations for Sequential Recommendation"
+ },
+ {
+  "question": "How is the online fraction \u03b2(t) adjusted over time in the training process?",
+  "chunk_id": "2606_10825::c0040",
+  "doc_id": "2606_10825",
+  "title": "MODIP: Efficient Model-Based Optimization for Diffusion Policies"
+ },
+ {
+  "question": "What is the bound on \u2225\ud835\udc6e\ud835\udc61\u2225 derived from the submultiplicativity of the operator norm and properties of probability vectors?",
+  "chunk_id": "2606_11052::c0050",
+  "doc_id": "2606_11052",
+  "title": "Attention Amnesia in Hybrid LLMs: When CoT Fine-Tuning Breaks Long-Range Recall, and How to Fix It"
+ },
+ {
+  "question": "What machine learning models were developed to predict atrial fibrillation risk in cardiovascular disease patients using hospital data?",
+  "chunk_id": "2606_10725::c0001",
+  "doc_id": "2606_10725",
+  "title": "Pre-AF 13: An Interpretable Atrial Fibrillation Risk Score Mined from Discharge Reports"
+ },
+ {
+  "question": "What is the title of the paper by F. Bastani et al. presented at CVPR 2018?",
+  "chunk_id": "2606_10468::c0043",
+  "doc_id": "2606_10468",
+  "title": "Geometric Coastline Localization using Vision-Language Models"
+ },
+ {
+  "question": "How does MOFA-VTON construct layout guidance from user-drawn curve sketches?",
+  "chunk_id": "2606_11148::c0010",
+  "doc_id": "2606_11148",
+  "title": "MOFA-VTON: More Fashion Possibilities with Fine-Grained Adaptations in Virtual Try-On"
+ },
+ {
+  "question": "What is the formula for Relative Precision Gain and what threshold indicates operational effectiveness for field deployment?",
+  "chunk_id": "2606_10876::c0025",
+  "doc_id": "2606_10876",
+  "title": "Advancing Wood Identification in the Philippines: Utilizing the Xylorix Platform for Efficient AI Model Development and Deployment for Five Key Species"
+ },
+ {
+  "question": "What data augmentation techniques were found to worsen performance in the ablation study?",
+  "chunk_id": "2606_10628::c0007",
+  "doc_id": "2606_10628",
+  "title": "Leveraging Metric Depth for Relative Depth Prediction"
+ }
+]

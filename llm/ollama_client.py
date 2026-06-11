@@ -27,7 +27,9 @@ class OllamaClient:
         self.num_ctx = num_ctx or LLM_CONFIG["num_ctx"]
 
     def _options(self, **overrides: Any) -> dict[str, Any]:
-        opts = {"temperature": self.temperature, "num_ctx": self.num_ctx}
+        opts = {"temperature": self.temperature}
+        if self.num_ctx:  # only send when explicitly configured (see config.py)
+            opts["num_ctx"] = self.num_ctx
         opts.update({k: v for k, v in overrides.items() if v is not None})
         return opts
 

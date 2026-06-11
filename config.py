@@ -13,7 +13,10 @@ LLM_CONFIG = {
     "base_url": "https://api.groq.com/openai/v1" if HOSTED else "http://localhost:11434",
     "temperature": 0.1,
     "timeout": 60 if HOSTED else 180,
-    "num_ctx": 8192,
+    # Do NOT force num_ctx locally: the optimized Qwen3-VL build loads with
+    # ctx 24576, and requesting a different value makes Ollama reload a second
+    # 12 GB instance → memory thrash on 24 GB → requests stall until timeout.
+    "num_ctx": None,
 }
 
 EMBEDDING_CONFIG = {
