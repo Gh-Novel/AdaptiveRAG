@@ -18,7 +18,9 @@ A production-grade RAG system over **201 papers / 12,735 chunks** where **every 
 
 **▶ Live demo:** https://huggingface.co/spaces/NoobNovel/AdaptiveRAG
 
-[▶ Watch the demo (new dashboard UI, 28s)](assets/demo.mp4)
+![AdaptiveRAG dashboard demo](assets/demo.gif)
+
+[▶ Full-quality video (MP4)](assets/demo.mp4)
 
 ---
 
