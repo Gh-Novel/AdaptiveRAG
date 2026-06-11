@@ -1,8 +1,10 @@
 """PDF loader. Returns per-page text + structural metadata."""
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import pymupdf
@@ -58,6 +60,20 @@ _TITLE_OVERRIDES = {
 }
 
 
+@lru_cache(maxsize=8)
+def _sidecar_metadata(dir_path: str) -> dict:
+    """Load <dir>/metadata.json if present ({stem: {title, ...}}).
+
+    Written by download_arxiv.py — scales title resolution to thousands of
+    papers where the hand-maintained _TITLE_OVERRIDES dict cannot.
+    """
+    p = Path(dir_path) / "metadata.json"
+    try:
+        return json.loads(p.read_text()) if p.exists() else {}
+    except Exception:
+        return {}
+
+
 def load_pdf(path: str | Path) -> LoadedDoc:
     path = Path(path)
     doc = pymupdf.open(path)
@@ -67,7 +83,12 @@ def load_pdf(path: str | Path) -> LoadedDoc:
         cleaned = _clean(raw)
         if cleaned:
             pages.append(PageText(page_number=i, text=cleaned))
-    title = _TITLE_OVERRIDES.get(path.stem) or _guess_title(pages, fallback=path.stem)
+    sidecar = _sidecar_metadata(str(path.parent)).get(path.stem, {})
+    title = (
+        _TITLE_OVERRIDES.get(path.stem)
+        or sidecar.get("title")
+        or _guess_title(pages, fallback=path.stem)
+    )
     doc.close()
     return LoadedDoc(source_path=str(path), title=title, pages=pages)
 

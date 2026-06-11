@@ -1,44 +1,70 @@
-"""Sparse retrieval via BM25Okapi over the persisted token corpus."""
+"""Sparse (keyword) retrieval via SQLite FTS5.
+
+FTS5 maintains a disk-backed inverted index with native BM25 ranking and
+Porter stemming. Replaces rank-bm25, which held the whole tokenized corpus
+in RAM and scored every document on every query (O(n) — seconds at 280k
+chunks). FTS5 answers the same queries in ~10 ms.
+"""
 from __future__ import annotations
 
-from functools import lru_cache
+import json
+import re
+import sqlite3
 
-from rank_bm25 import BM25Okapi
-
-from config import RETRIEVAL_CONFIG
-from ingestion.indexer import load_bm25_corpus, tokenize
+from config import PATHS, RETRIEVAL_CONFIG
 from retrieval.dense import Hit
 
+_TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
 
-@lru_cache(maxsize=1)
-def _bm25_state():
-    corpus = load_bm25_corpus()
-    bm25 = BM25Okapi(corpus["tokenized"])
-    return bm25, corpus
+
+def _connect() -> sqlite3.Connection:
+    path = PATHS["fts_path"]
+    if not path.exists():
+        raise FileNotFoundError(
+            f"FTS index not found at {path}. Run `python ingest.py` first."
+        )
+    return sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+
+
+def _to_match_expr(query: str) -> str:
+    """Sanitize free text into an FTS5 MATCH expression (OR of bare tokens)."""
+    tokens = [t.lower() for t in _TOKEN_RE.findall(query)]
+    return " OR ".join(tokens)
 
 
 def sparse_search(query: str, k: int | None = None) -> list[Hit]:
     k = k or RETRIEVAL_CONFIG["sparse_k"]
-    bm25, corpus = _bm25_state()
-    tokens = tokenize(query)
-    if not tokens:
+    match = _to_match_expr(query)
+    if not match:
         return []
-    scores = bm25.get_scores(tokens)
-    idx_sorted = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
-    max_score = float(scores[idx_sorted[0]]) if idx_sorted else 0.0
+
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT chunk_id, metadata, text, bm25(chunks_fts) AS s "
+            "FROM chunks_fts WHERE chunks_fts MATCH ? ORDER BY s LIMIT ?",
+            (match, k),
+        ).fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return []
+
+    # SQLite bm25() returns <= 0 with more-negative = better; flip sign so
+    # higher = better, then normalize to [0,1] like the old rank-bm25 path.
+    raw = [-r[3] for r in rows]
+    mx = max(raw) or 1.0
+
     hits: list[Hit] = []
-    for r, i in enumerate(idx_sorted):
-        s = float(scores[i])
-        if s <= 0:
-            continue
-        norm = s / max_score if max_score > 0 else 0.0
+    for rank, (row, score) in enumerate(zip(rows, raw)):
+        chunk_id, meta_json, text, _ = row
         hits.append(
             Hit(
-                chunk_id=corpus["ids"][i],
-                text=corpus["docs"][i],
-                metadata=dict(corpus["metas"][i]),
-                score=norm,
-                rank=r,
+                chunk_id=chunk_id,
+                text=text,
+                metadata=json.loads(meta_json),
+                score=float(score / mx),
+                rank=rank,
             )
         )
     return hits

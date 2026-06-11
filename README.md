@@ -6,134 +6,114 @@ license: mit
 short_description: Agentic + Self-RAG + Modular RAG with visual pipeline UI
 ---
 
-<div align="center">
+# AdaptiveRAG — Agentic + Self-RAG + Modular RAG
 
-# 📚 AdaptiveRAG
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![ChromaDB](https://img.shields.io/badge/VectorDB-ChromaDB-orange)
+![SQLite FTS5](https://img.shields.io/badge/Sparse-SQLite_FTS5-green)
+![Streamlit](https://img.shields.io/badge/UI-Streamlit-red)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-### Production-grade RAG combining Modular · Self-RAG · Agentic patterns
+A production-grade RAG system where **every internal stage is visible live in the UI** — embedding vectors, routing decisions, dense vs. sparse hits, rank fusion, cross-encoder scores, self-critique, and self-healing. Built to demonstrate how a real retrieval pipeline works under the hood, not just that it works.
 
-[![HF Space](https://img.shields.io/badge/🤗%20Hugging%20Face-Live%20Demo-blue)](https://huggingface.co/spaces/NoobNovel/AdaptiveRAG)
-[![GitHub](https://img.shields.io/badge/GitHub-Gh--Novel%2FAdaptiveRAG-black?logo=github)](https://github.com/Gh-Novel/AdaptiveRAG)
-[![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/UI-Streamlit-red?logo=streamlit)](https://streamlit.io)
+**▶ Live demo:** https://huggingface.co/spaces/NoobNovel/AdaptiveRAG
 
-**Every stage of the pipeline is visualized live — from raw text to grounded answer with citations.**
-
-[🚀 Try Live Demo](https://huggingface.co/spaces/NoobNovel/AdaptiveRAG) · [💻 Run Locally](#run-locally)
-
-</div>
+https://github.com/user-attachments/assets/5ae152da-00bd-4812-9743-2aaab1ffc5d6
 
 ---
 
-## 🎬 Demo
-
-<!-- Replace the URL below with your actual demo video link -->
-> 📹 **[Watch full pipeline demo →](https://your-video-link-here)**
-
-*Shows: question encoding → Self-RAG routing → hybrid retrieval → 2D vector space → self-critique*
-
----
-
-## 🧠 What makes this different
-
-Most RAG demos do: `embed query → cosine search → stuff into prompt`. This does:
+## Architecture
 
 ```
-User question
-   ↓  embed (MiniLM-L6 → 384-dim vector)
-   ↓  Self-RAG router  →  RETRIEVE / ANSWER_DIRECTLY / CLARIFY
-   ↓  Planner          →  break into focused sub-queries
-   ↓  Dense retrieval  →  ChromaDB cosine similarity (k=12)
-   ↓  Sparse retrieval →  BM25 keyword matching (k=12)
-   ↓  RRF fusion       →  Reciprocal Rank Fusion merge
-   ↓  Cross-encoder    →  BGE reranker deep relevance scoring (top 5)
-   ↓  LLM answer       →  Qwen3-VL (local) / LLaMA 3.1 via Groq (hosted)
-   ↓  Self-critique     →  grounded? complete? confidence score
-   ↓  Refine & retry   →  if confidence < 0.85
-   →  Answer + citations + trace
+                              ┌─────────────────────┐
+ question ──► embed (MiniLM) ─► Self-RAG router     │ RETRIEVE / ANSWER_DIRECTLY / CLARIFY
+                              └──────────┬──────────┘
+                                         ▼
+                              ┌─────────────────────┐
+                              │ Planner (LLM)       │ decomposes into ≤3 sub-queries
+                              └──────────┬──────────┘
+                                         ▼
+                   ┌─────────────────────┴─────────────────────┐
+                   ▼                                           ▼
+        Dense retrieval (ChromaDB,                Sparse retrieval (SQLite FTS5,
+        cosine, HNSW, 384-dim)                    native BM25 + Porter stemming)
+                   └─────────────────────┬─────────────────────┘
+                                         ▼
+                          Reciprocal Rank Fusion (k=60)
+                                         ▼
+                          Cross-encoder rerank (BGE-reranker-base)
+                                         ▼
+                          Answer generation with [N] citations
+                                         ▼
+                          Self-critique → refine query → retry (≤3 iterations)
+                                         ▼
+                  ⚕️ Self-Healing: hallucination detection · chunk expansion
+                     · query rewriting · knowledge-gap web search
+                                         ▼
+                              answer + citations + health score
 ```
 
----
+## What makes it more than a tutorial RAG
 
-## 🔬 Underhood Pipeline View
+| Layer | What it does | Why it matters |
+|---|---|---|
+| **Self-RAG router** | LLM decides RETRIEVE / ANSWER_DIRECTLY / CLARIFY *before* touching the index | No wasted retrieval on greetings or chit-chat |
+| **Agentic loop** | plan → retrieve → answer → self-critique → refine → retry | Answers below the 0.85 confidence threshold get a refined second pass |
+| **Hybrid retrieval** | Dense (semantic) ∥ Sparse (keyword) merged with RRF | Dense misses exact terms, sparse misses synonyms — fusion catches both |
+| **Cross-encoder rerank** | BGE reranker scores (query, chunk) pairs jointly | Far more accurate than bi-encoder cosine; only run on the fused candidate set |
+| **⚕️ Self-Healing** | Per-sentence grounding check (cosine < 0.75 → flagged), low-quality chunk expansion via document neighbours, multi-angle query rewriting, knowledge-gap detection with optional Tavily web search | The answer is diagnosed and regenerated up to 3× — with a 0–100 health score shown in the UI |
+| **KB Versioning** | Every ingest = snapshot (`kb_v1`, `kb_v2`…) with SHA-256 change detection; only changed docs re-embedded; rollback = one metadata write; every query logged with the version that answered it | Production concern most demos skip: replay any historical query, roll back bad data in milliseconds |
+| **Multimodal Q&A** | Image → caption → hybrid retrieve → vision-LLM reasons over image + passages | Figure-level questions on papers (local Qwen3-VL) |
+| **Underhood UI** | Every stage renders its actual inputs/outputs as it runs, incl. 2D PCA projection of the query + hit embeddings | You can *watch* RRF change the ranking |
 
-Every step renders its inputs and outputs **as it runs**:
+## Engineered for scale (2,000+ papers)
 
-| Step | What you see |
-|------|-------------|
-| **1 · Question encoding** | Embedding model · 384 dimensions · L2 norm · latency · first-32-dim bar chart · raw `vector[0:8]` values |
-| **2 · Self-RAG router** | Color-coded decision pill (`RETRIEVE` / `ANSWER_DIRECTLY` / `CLARIFY`) + LLM reasoning |
-| **3 · Planner** | Sub-query cards with rationale for each step |
-| **4 · Dense retrieval** | Cosine similarity bar chart + chunk cards with scores |
-| **4 · Sparse retrieval** | BM25 normalized score chart + chunk cards |
-| **4 · RRF fusion** | Merged ranking chart showing how both lists combine |
-| **4 · Cross-encoder rerank** | BGE relevance score chart (final top-5) |
-| **4 · Vector space** | 2D PCA scatter — query vs all hits, colored by source (dense / sparse / both) |
-| **5 · Context assembly** | Exact passages handed to the LLM, with metadata |
-| **6 · Self-critique** | Grounded ✅ · Complete ✅ · Confidence score vs threshold |
+The pipeline was load-tested beyond toy size and the bottlenecks were fixed, not hidden:
 
----
+- **Sparse search: rank-bm25 → SQLite FTS5.** The original in-memory BM25 scored every chunk in Python — O(n) per query, seconds at ~300k chunks, ~3 GB RAM. Replaced with a disk-backed FTS5 inverted index (native BM25 + Porter stemming): **2.7 ms per query**, near-zero memory, and the latency stays flat as the corpus grows.
+- **Embedding on Apple Silicon MPS** with auto device detection — CPU on the hosted Space, GPU-accelerated locally.
+- **Resumable ingestion.** Per-document checkpointing (`ingest_progress.json`): kill the run at paper 1,400 of 2,000 and it resumes at 1,401. Corrupt PDFs are logged and skipped, never fatal.
+- **Bulk corpus tooling.** `download_arxiv.py` pulls papers by category from the arXiv API with full metadata (title/authors/abstract) — titles scale via a metadata sidecar instead of a hand-written dict.
+- **Dual LLM backend.** One env var (`GROQ_API_KEY`) switches the whole system between local Ollama (Qwen3-VL) and the Groq API (LLaMA 3.1) — same client interface, zero code changes.
 
-## 🗂️ Knowledge Base
+## Tech stack
 
-14 foundational AI papers pre-indexed as **1,934 semantic chunks**:
+| Component | Choice |
+|---|---|
+| Dense embeddings | `all-MiniLM-L6-v2` (384-dim, normalized) |
+| Vector store | ChromaDB (HNSW, cosine) |
+| Sparse index | SQLite FTS5 (BM25, Porter stemming) |
+| Fusion | Reciprocal Rank Fusion (k=60) |
+| Reranker | `BAAI/bge-reranker-base` cross-encoder |
+| LLM (hosted) | LLaMA 3.1 8B via Groq |
+| LLM (local) | Qwen3-VL 8B via Ollama (multimodal) |
+| Versioning | SQLite + SHA-256 change detection |
+| UI | Streamlit |
+| PDF parsing | PyMuPDF with semantic chunking (~1,400 chars, 200 overlap, heading-aware) |
 
-| Category | Papers |
-|----------|--------|
-| Transformers | Attention Is All You Need · BERT · GPT-3 |
-| Diffusion | DDPM · DDIM |
-| RAG | RAG Original · RAG Survey · Self-RAG · HyDE |
-| Vision | ViT · CLIP |
-| Agents | ReAct · Chain-of-Thought |
-| LLMs | LLM Survey |
+## Knowledge base
 
----
+14 foundational AI papers (Transformers, BERT, GPT-3, DDPM/DDIM, RAG, Self-RAG, HyDE, ViT, CLIP, ReAct, Chain-of-Thought, LLM surveys) — expandable to thousands via the arXiv bulk downloader.
 
-## ⚙️ Tech Stack
-
-| Component | Tool | Why |
-|-----------|------|-----|
-| Vector DB | ChromaDB (local) | No API cost, persistent |
-| Dense embeddings | `all-MiniLM-L6-v2` | Fast, 384-dim, normalized |
-| Sparse retrieval | `rank-bm25` (BM25Okapi) | Keyword precision |
-| Fusion | Reciprocal Rank Fusion | Combines rankings without score normalization |
-| Reranker | `BAAI/bge-reranker-base` | Cross-encoder, deep relevance scoring |
-| LLM (local) | Qwen3-VL 8B via Ollama | Vision-language, runs on Apple Silicon |
-| LLM (hosted) | LLaMA 3.1 8B via Groq | Free API, fast inference |
-| UI | Streamlit | Fast to build, easy to demo |
-
----
-
-## 🚀 Run Locally
+## Run locally
 
 ```bash
 git clone https://github.com/Gh-Novel/AdaptiveRAG
 cd AdaptiveRAG
-
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# start Ollama with the vision-language model
+# Option A — local LLM: needs Ollama running (multimodal Qwen3-VL)
 ollama serve
-ollama pull qwen3-vl:8b-instruct-q8_0-optimized
+
+# Option B — hosted LLM: set a free Groq key instead
+export GROQ_API_KEY=...
 
 streamlit run app.py
 ```
 
-Or use the CLI:
-
 ```bash
-.venv/bin/python ask.py "How does Self-RAG decide when to retrieve?"
+# Optional: grow the corpus
+python download_arxiv.py --total 200        # bulk-download arXiv papers + metadata
+python ingest.py --papers-dir papers_arxiv  # resumable, incremental indexing
 ```
-
----
-
-## ☁️ Hosted on Hugging Face
-
-The live demo runs on HF Spaces (CPU free tier) with **Groq API** handling LLM calls.
-
-- Embedding + retrieval + reranking run locally inside the container (MiniLM + BGE)
-- `GROQ_API_KEY` secret drives routing, planning, answering, and self-critique
-- Pre-built index (1,934 chunks, ~59 MB) is committed via git-lfs — no ingestion on startup
-
-**[🤗 Open Live Demo](https://huggingface.co/spaces/NoobNovel/AdaptiveRAG)**

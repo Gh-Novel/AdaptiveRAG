@@ -18,8 +18,8 @@ LLM_CONFIG = {
 
 EMBEDDING_CONFIG = {
     "model": "sentence-transformers/all-MiniLM-L6-v2",
-    "device": "cpu",
-    "batch_size": 32,
+    "device": "auto",  # auto → MPS on Apple Silicon, else CPU
+    "batch_size": 64,
 }
 
 RERANKER_CONFIG = {
@@ -50,8 +50,10 @@ AGENT_CONFIG = {
 PATHS = {
     "papers_dir": ROOT / "papers",
     "chroma_dir": ROOT / "storage" / "chroma",
-    "bm25_path": ROOT / "storage" / "bm25.pkl",
+    "bm25_path": ROOT / "storage" / "bm25.pkl",  # legacy (replaced by FTS5)
+    "fts_path": ROOT / "storage" / "fts.db",
     "manifest_path": ROOT / "storage" / "manifest.json",
+    "ingest_progress_path": ROOT / "storage" / "ingest_progress.json",
     "versions_db": ROOT / "storage" / "versions.db",
 }
 

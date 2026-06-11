@@ -1,10 +1,15 @@
-"""ChromaDB management + BM25 corpus persistence."""
+"""ChromaDB management + SQLite FTS5 sparse index.
+
+Sparse retrieval moved from rank-bm25 (in-memory linear scan, O(n) per query)
+to SQLite FTS5 (disk-backed inverted index with built-in BM25 ranking).
+At 280k chunks rank-bm25 took seconds per query and ~3 GB RAM; FTS5 answers
+in ~10 ms with near-zero memory.
+"""
 from __future__ import annotations
 
 import json
 import os
-import pickle
-import re
+import sqlite3
 
 os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 import chromadb
@@ -14,10 +19,12 @@ from config import CHROMA_COLLECTION, PATHS
 from ingestion.chunker import Chunk
 from ingestion.embedder import embed_texts
 
+_CHROMA_BATCH = 256
+
 
 def _ensure_dirs() -> None:
     PATHS["chroma_dir"].mkdir(parents=True, exist_ok=True)
-    PATHS["bm25_path"].parent.mkdir(parents=True, exist_ok=True)
+    PATHS["fts_path"].parent.mkdir(parents=True, exist_ok=True)
 
 
 def _client() -> chromadb.PersistentClient:
@@ -36,6 +43,54 @@ def get_chroma_collection():
     )
 
 
+# ── FTS5 sparse index ────────────────────────────────────────────────
+
+def _fts_conn() -> sqlite3.Connection:
+    _ensure_dirs()
+    conn = sqlite3.connect(str(PATHS["fts_path"]))
+    conn.execute(
+        """
+        CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5(
+            chunk_id UNINDEXED,
+            doc_id   UNINDEXED,
+            metadata UNINDEXED,
+            text,
+            tokenize='porter unicode61'
+        )
+        """
+    )
+    return conn
+
+
+def _fts_upsert(conn: sqlite3.Connection, chunks: list[Chunk]) -> None:
+    """Replace all FTS rows for the documents covered by *chunks*."""
+    doc_ids = sorted({c.doc_id for c in chunks})
+    conn.executemany(
+        "DELETE FROM chunks_fts WHERE doc_id = ?", [(d,) for d in doc_ids]
+    )
+    conn.executemany(
+        "INSERT INTO chunks_fts (chunk_id, doc_id, metadata, text) VALUES (?,?,?,?)",
+        [
+            (
+                c.chunk_id,
+                c.doc_id,
+                json.dumps(
+                    {
+                        "doc_id": c.doc_id,
+                        "source_path": c.source_path,
+                        "title": c.title,
+                        "page_start": c.page_start,
+                        "page_end": c.page_end,
+                    }
+                ),
+                c.text,
+            )
+            for c in chunks
+        ],
+    )
+    conn.commit()
+
+
 def reset_index() -> None:
     _ensure_dirs()
     client = _client()
@@ -43,26 +98,12 @@ def reset_index() -> None:
         client.delete_collection(CHROMA_COLLECTION)
     except Exception:
         pass
-    if PATHS["bm25_path"].exists():
-        PATHS["bm25_path"].unlink()
-    if PATHS["manifest_path"].exists():
-        PATHS["manifest_path"].unlink()
+    for key in ("fts_path", "bm25_path", "manifest_path", "ingest_progress_path"):
+        if PATHS[key].exists():
+            PATHS[key].unlink()
 
 
-_TOKEN_RE = re.compile(r"[a-zA-Z0-9]+")
-
-
-def tokenize(text: str) -> list[str]:
-    return [t.lower() for t in _TOKEN_RE.findall(text)]
-
-
-def index_chunks(chunks: list[Chunk], reset: bool = False) -> dict:
-    _ensure_dirs()
-    if reset:
-        reset_index()
-
-    coll = get_chroma_collection()
-
+def _chunk_payload(chunks: list[Chunk]):
     ids = [c.chunk_id for c in chunks]
     docs = [c.text for c in chunks]
     metas = [
@@ -75,31 +116,58 @@ def index_chunks(chunks: list[Chunk], reset: bool = False) -> dict:
         }
         for c in chunks
     ]
+    return ids, docs, metas
 
-    print(f"  Embedding {len(docs)} chunks...")
+
+def index_doc(chunks: list[Chunk], coll=None, fts=None) -> int:
+    """Incrementally index ONE document's chunks (Chroma + FTS5).
+
+    Pass coll/fts to reuse connections across documents in a long ingest run.
+    Returns the number of chunks indexed.
+    """
+    if not chunks:
+        return 0
+    own_fts = fts is None
+    coll = coll if coll is not None else get_chroma_collection()
+    fts = fts if fts is not None else _fts_conn()
+
+    ids, docs, metas = _chunk_payload(chunks)
     embeddings = embed_texts(docs)
-
-    print(f"  Writing to ChromaDB ({CHROMA_COLLECTION})...")
-    BATCH = 256
-    for i in range(0, len(ids), BATCH):
+    for i in range(0, len(ids), _CHROMA_BATCH):
         coll.upsert(
-            ids=ids[i : i + BATCH],
-            documents=docs[i : i + BATCH],
-            metadatas=metas[i : i + BATCH],
-            embeddings=embeddings[i : i + BATCH],
+            ids=ids[i : i + _CHROMA_BATCH],
+            documents=docs[i : i + _CHROMA_BATCH],
+            metadatas=metas[i : i + _CHROMA_BATCH],
+            embeddings=embeddings[i : i + _CHROMA_BATCH],
         )
+    _fts_upsert(fts, chunks)
+    if own_fts:
+        fts.close()
+    return len(ids)
 
-    print("  Building BM25 corpus...")
-    tokenized = [tokenize(d) for d in docs]
-    with open(PATHS["bm25_path"], "wb") as f:
-        pickle.dump(
-            {"ids": ids, "tokenized": tokenized, "metas": metas, "docs": docs},
-            f,
-        )
 
+def index_chunks(chunks: list[Chunk], reset: bool = False) -> dict:
+    """Index a full batch of chunks (kept for compatibility with small corpora)."""
+    _ensure_dirs()
+    if reset:
+        reset_index()
+
+    coll = get_chroma_collection()
+    fts = _fts_conn()
+    try:
+        print(f"  Embedding {len(chunks)} chunks...")
+        index_doc(chunks, coll=coll, fts=fts)
+    finally:
+        fts.close()
+
+    manifest = write_manifest(_group_count([c.doc_id for c in chunks]))
+    return manifest
+
+
+def write_manifest(chunks_per_doc: dict) -> dict:
     manifest = {
-        "n_chunks": len(ids),
-        "chunks_per_doc": _group_count([c.doc_id for c in chunks]),
+        "n_chunks": sum(chunks_per_doc.values()),
+        "chunks_per_doc": chunks_per_doc,
     }
     with open(PATHS["manifest_path"], "w") as f:
         json.dump(manifest, f, indent=2)
@@ -156,12 +224,3 @@ def fetch_embeddings(chunk_ids: list[str]) -> dict[str, list[float]]:
     for cid, vec in zip(res["ids"], res["embeddings"]):
         out[cid] = list(vec)
     return out
-
-
-def load_bm25_corpus() -> dict:
-    if not PATHS["bm25_path"].exists():
-        raise FileNotFoundError(
-            f"BM25 corpus not found at {PATHS['bm25_path']}. Run ingestion first."
-        )
-    with open(PATHS["bm25_path"], "rb") as f:
-        return pickle.load(f)

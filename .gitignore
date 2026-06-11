@@ -13,3 +13,6 @@ papers/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# arXiv bulk corpus — PDFs stay local (re-download with download_arxiv.py)
+papers_arxiv/*.pdf
